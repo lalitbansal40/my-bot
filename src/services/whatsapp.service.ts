@@ -31,32 +31,61 @@ export const sendTextMessage = async (to: string, text: string) => {
 export const sendUtilityTemplate = async (
     to: string,
     templateName: string,
-    language = "en_US",
-    parameters: string[]
+    options: {
+        language?: string;
+        parameters: string[];        // BODY params (positional)
+        headerImageUrl?: string;     // OPTIONAL IMAGE header
+    }
 ) => {
     try {
+        const components: any[] = [];
+
+        /* ===============================
+           HEADER (IMAGE) – optional
+        =============================== */
+        if (options.headerImageUrl) {
+            components.push({
+                type: "header",
+                parameters: [
+                    {
+                        type: "image",
+                        image: {
+                            link: options.headerImageUrl,
+                        },
+                    },
+                ],
+            });
+        }
+
+        /* ===============================
+           BODY (POSITIONAL)
+        =============================== */
+        components.push({
+            type: "body",
+            parameters: options.parameters.map(text => ({
+                type: "text",
+                text,
+            })),
+        });
+
         await whatsappApi.post("/messages", {
             messaging_product: "whatsapp",
             to,
             type: "template",
             template: {
                 name: templateName,
-                language: { code: language },
-                components: [
-                    {
-                        type: "body",
-                        parameters: parameters.map(text => ({
-                            type: "text",
-                            text,
-                        })),
-                    },
-                ],
+                language: { code: options.language || "en" },
+                components,
             },
         });
-    } catch (error) {
-        console.error("sendUtilityTemplate error:", error);
+    } catch (error: any) {
+        console.error(
+            "sendUtilityTemplate error:",
+            error?.response?.data || error.message
+        );
     }
 };
+
 
 export interface WhatsAppButton {
     type: "reply";
@@ -90,7 +119,14 @@ export const sendButtonMessage = async (
 
 export const sendFlowMessage = async (
     to: string,
-    flowId: string
+    flowId: string,
+    options?: {
+        headerText?: string;
+        bodyText?: string;
+        ctaText?: string;
+        startScreen?: string;
+        data?: Record<string, any>;
+    }
 ) => {
     try {
         await whatsappApi.post("/messages", {
@@ -101,27 +137,30 @@ export const sendFlowMessage = async (
                 type: "flow",
                 header: {
                     type: "text",
-                    text: "Agarwal Cake Zone 🍰",
+                    text: options?.headerText || "Cake Arena 🍰",
                 },
                 body: {
-                    text: "Tap below to place your order",
+                    text:
+                        options?.bodyText ||
+                        "Tap below to explore cakes & place your order",
                 },
                 action: {
                     name: "flow",
                     parameters: {
-                        flow_token: "hello",
-                        flow_message_version: "3", // ✅ REQUIRED
+                        flow_token: "hello", // can be dynamic later
+                        flow_message_version: "3",
                         flow_id: flowId,
-                        flow_cta: "Place An Order",
+                        flow_cta: options?.ctaText || "Start Ordering",
                         flow_action: "navigate",
                         flow_action_payload: {
-                            screen: "WELCOME_SCREEN",
+                            screen: options?.startScreen || "WELCOME_SCREEN",
                             data: {
-                                hello: "hello"
-                            }
-                        }
-                    }
-                }
+                                phone_number: to,
+                                ...(options?.data || {}),
+                            },
+                        },
+                    },
+                },
             },
         });
     } catch (error: any) {
@@ -134,7 +173,7 @@ export const sendFlowMessage = async (
 
 
 
-export const sendLocationRequest = async (to: string) => {
+export const sendLocationRequest = async (to: string, msg: string) => {
     try {
         await whatsappApi.post("/messages", {
             messaging_product: "whatsapp",
@@ -143,7 +182,7 @@ export const sendLocationRequest = async (to: string) => {
             interactive: {
                 type: "location_request_message",
                 body: {
-                    text: "📍 Please share the delivery location where you want the cake delivered.",
+                    text: msg,
                 },
                 action: {
                     name: "send_location",

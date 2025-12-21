@@ -6,15 +6,20 @@ dotenv.config();
 ========================= */
 
 export interface UserSession {
+  longitude: any;
+  latitude: any;
   step:
-    | "WAITING_FOR_LOCATION"
-    | "CONFIRM_ADDRESS"
-    | "CHOOSE_CAKE_TYPE";
-  location?: {
-    latitude: number;
-    longitude: number;
-  };
+  | "CHOOSE_LANGUAGE" // New step
+  | "WAITING_FOR_LOCATION"
+  | "CONFIRM_ADDRESS"
+  | "CHOOSE_CAKE_TYPE"
+  | "FLOW_COMPLETED"
+  | "PAYMENT_LINK_SENT";
+  language?: "ENGLISH" | "HINDI"; // Store preference
+  location?: { latitude: number; longitude: number } | null;
   address?: string;
+  structuredAddress?: any;
+  bill: any
 }
 
 const sessions = new Map<string, UserSession>();
