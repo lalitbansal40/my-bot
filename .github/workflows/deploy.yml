@@ -25,7 +25,7 @@ jobs:
         run: npm run build
 
       - name: Zip Lambda
-        run: zip -r lambda.zip dist node_modules package.json
+        run: zip -r lambda.zip dist
 
       - name: Install AWS CLI
         uses: unfor19/install-aws-cli-action@v1
