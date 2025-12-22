@@ -33,7 +33,7 @@ jobs:
       - name: Deploy to AWS Lambda
         run: |
           aws lambda update-function-code \
-            --function-name LAMBDA_FUNCTION_NAME \
+            --function-name my-bot \
             --zip-file fileb://lambda.zip
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
