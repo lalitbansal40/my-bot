@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
-import { WHATSAPP } from "../config/whatsapp";
-import { handleIncomingMessage } from "../services/message.service";
+
 import { sendTextMessage, sendUtilityTemplate } from "../services/whatsapp.service";
 import { GoogleSheetService } from "../services/googlesheet.service";
 import { BorzoApiClient } from "../services/borzo.service";
@@ -53,32 +52,33 @@ export const verifyWebhook = async (event: any) => {
    WHATSAPP MESSAGE RECEIVE
 ===================================================== */
 export const receiveMessage = async (event: any) => {
-  // ✅ Meta ko fast 200 response
-  const response = {
-    statusCode: 200,
-    body: ""
-  };
-
-  // Lambda me body string hoti hai
-  const body = JSON.parse(event.body || "{}");
+  const body =
+    typeof event.body === "string" && event.body.length
+      ? JSON.parse(event.body)
+      : {};
 
   const entry = body.entry?.[0];
   const change = entry?.changes?.[0];
   const value = change?.value;
 
   if (!value?.messages) {
-    return response;
+    return { statusCode: 200, body: "" };
   }
 
   const userName = value.contacts?.[0]?.profile?.name || "Customer";
 
-  // 🔁 Messages process karo
+  // 🔥 LAZY LOAD (Lambda safe)
+  const { handleIncomingMessage } = await import(
+    "../services/message.service"
+  );
+
   for (const message of value.messages) {
     await handleIncomingMessage(message, userName);
   }
 
-  return response;
+  return { statusCode: 200, body: "" };
 };
+
 
 
 export const recievePayment = async (req: Request, res: Response) => {
