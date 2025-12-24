@@ -1,4 +1,4 @@
-import { verifyWebhook } from "./controllers/webhook.controller";
+import { verifyWebhook, receiveMessage } from "./controllers/webhook.controller";
 
 export const handler = async (event: any) => {
   try {
@@ -12,6 +12,10 @@ export const handler = async (event: any) => {
     if (path === "/webhook" && method === "GET") {
       return await verifyWebhook(event);
     }
+
+    if (path === "/webhook" && method === "POST") {
+  return await receiveMessage(event);
+}
 
     return { statusCode: 404, body: "NOT FOUND" };
   } catch (err) {
