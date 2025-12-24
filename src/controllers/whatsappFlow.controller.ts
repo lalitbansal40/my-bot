@@ -37,52 +37,59 @@ Jjf6S9WfUN7SDVDuzEH1nHABHdlBa1AL
 
 
 
-export const whatsappFlowController = async (
-  req: Request,
-  res: Response
-): Promise<Response | void> => {
-  const appName = req.params.appName as string;
-
-  if (!PRIVATE_KEY) {
-    throw new Error(
-      'Private key is empty. Please check your env variable "PRIVATE_KEY".'
-    );
-  }
-
-  let decryptedRequest: DecryptRequestResult<any>;
-
+export const whatsappFlowController = async (event: any) => {
   try {
-    decryptedRequest = decryptRequest(
-      req.body,
-      PRIVATE_KEY,
-      process.env.PASSPHRASE
-    );
-  } catch (err) {
-    if (err instanceof FlowEndpointException) {
-      return res.status(err.statusCode).send();
+    // ✅ PATH PARAM ( /whatsappflow/{appName} )
+    const appName = event.pathParameters?.appName as string;
+
+    if (!PRIVATE_KEY) {
+      throw new Error(
+        'Private key is empty. Please check env variable "PRIVATE_KEY".'
+      );
     }
-     return res.sendStatus(500);
-  }
 
-  const { aesKeyBuffer, initialVectorBuffer, decryptedBody } = decryptedRequest;
+    // Lambda body is string
+    const body = JSON.parse(event.body || "{}");
 
-  console.log("💬 Decrypted Request:", decryptedBody);
+    let decryptedRequest: DecryptRequestResult<any>;
 
-  try {
-    /**
-     * Vendor Flow App resolution
-     * Each vendor must expose:
-     *  - flowAppClass
-     *  - getNextScreen(payload, appName)
-     */
+    try {
+      decryptedRequest = decryptRequest(
+        body,
+        PRIVATE_KEY,
+        process.env.PASSPHRASE
+      );
+    } catch (err: any) {
+      if (err instanceof FlowEndpointException) {
+        return {
+          statusCode: err.statusCode,
+          body: ""
+        };
+      }
+
+      return {
+        statusCode: 500,
+        body: ""
+      };
+    }
+
+    const { aesKeyBuffer, initialVectorBuffer, decryptedBody } =
+      decryptedRequest;
+
+    console.log("💬 Decrypted Request:", decryptedBody);
+
     const VendorFlowClass = vendors[appName]?.flowAppClass;
 
     if (!VendorFlowClass) {
-      return res.status(400).json({
-        errors: {
-          message: `Invalid appName "${appName}". No flow app registered.`,
-        },
-      });
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          errors: {
+            message: `Invalid appName "${appName}". No flow app registered.`
+          }
+        })
+      };
     }
 
     const flowAppObj = new VendorFlowClass();
@@ -92,17 +99,28 @@ export const whatsappFlowController = async (
       appName
     );
 
-    return res.send(
-      encryptResponse(screenResponse, aesKeyBuffer, initialVectorBuffer)
-    );
+    // ✅ FINAL ENCRYPTED RESPONSE
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/octet-stream" },
+      body: encryptResponse(
+        screenResponse,
+        aesKeyBuffer,
+        initialVectorBuffer
+      )
+    };
   } catch (error) {
     console.error("Flow controller error:", error);
 
-    return res.status(500).json({
-      errors: {
-        message:
-          "Unhandled endpoint request. Make sure you handle the request action & screen logged above.",
-      },
-    });
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        errors: {
+          message:
+            "Unhandled endpoint request. Make sure you handle the request action & screen logged above."
+        }
+      })
+    };
   }
 };

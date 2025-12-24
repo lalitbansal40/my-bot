@@ -27,35 +27,57 @@ const BORZO_API_KEY = "7086ED3616843A380A867EB9BC097B024BAF5518"
 /* =====================================================
    WHATSAPP VERIFY WEBHOOK
 ===================================================== */
-export const verifyWebhook = (req: Request, res: Response) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
+export const verifyWebhook = async (event: any) => {
+  const query = event.queryStringParameters || {};
 
-  if (mode === "subscribe" && token === WHATSAPP.VERIFY_TOKEN) {
-    return res.status(200).send(challenge);
+  const mode = query["hub.mode"];
+  const token = query["hub.verify_token"];
+  const challenge = query["hub.challenge"];
+
+  if (mode === "subscribe" && token === process.env.WHATSAPP_VERIFY_TOKEN) {
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "text/plain" },
+      body: challenge
+    };
   }
 
-  return res.sendStatus(403);
+  return {
+    statusCode: 403,
+    body: ""
+  };
 };
+
 
 /* =====================================================
    WHATSAPP MESSAGE RECEIVE
 ===================================================== */
-export const receiveMessage = async (req: Request, res: Response) => {
-  res.sendStatus(200); // Meta fast response
+export const receiveMessage = async (event: any) => {
+  // ✅ Meta ko fast 200 response
+  const response = {
+    statusCode: 200,
+    body: ""
+  };
 
-  const entry = req.body.entry?.[0];
+  // Lambda me body string hoti hai
+  const body = JSON.parse(event.body || "{}");
+
+  const entry = body.entry?.[0];
   const change = entry?.changes?.[0];
   const value = change?.value;
 
-  if (!value?.messages) return;
+  if (!value?.messages) {
+    return response;
+  }
 
   const userName = value.contacts?.[0]?.profile?.name || "Customer";
 
+  // 🔁 Messages process karo
   for (const message of value.messages) {
     await handleIncomingMessage(message, userName);
   }
+
+  return response;
 };
 
 
