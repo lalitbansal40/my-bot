@@ -1,25 +1,21 @@
+import { verifyWebhook } from "./controllers/webhook.controller";
+
 export const handler = async (event: any) => {
   try {
-    const method = event.requestContext?.http?.method;
-    const path = event.rawPath?.replace(/\/$/, "");
+    const method = event.requestContext.http.method;
+    const path = event.rawPath.replace(/\/$/, "");
 
-    // ROOT
-    if (path === "" || path === "/") {
+    if (path === "/" && method === "GET") {
       return { statusCode: 200, body: "APP RUNNING ✅" };
     }
 
-    // WEBHOOK PLACEHOLDER
     if (path === "/webhook" && method === "GET") {
-      return { statusCode: 200, body: "WEBHOOK GET OK" };
-    }
-
-    if (path === "/webhook" && method === "POST") {
-      return { statusCode: 200, body: "WEBHOOK POST OK" };
+      return await verifyWebhook(event);
     }
 
     return { statusCode: 404, body: "NOT FOUND" };
   } catch (err) {
-    console.error("ROOT ERROR:", err);
+    console.error("ERROR:", err);
     return { statusCode: 500, body: "INTERNAL ERROR" };
   }
 };
