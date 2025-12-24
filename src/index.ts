@@ -11,13 +11,11 @@ app.use("/webhook", webhookRoutes);
 app.use("/whatsappflow", whatsappFlowRoutes);
 
 app.get("/", (_req, res) => {
-  res.send(`<pre>Nothing to see here. Checkout README.md to start.</pre>`);
+  res.send("<pre>Nothing to see here. Checkout README.md to start.</pre>");
 });
 
-// Lambda handler
-export const serverHandler = serverless(app);
-export const handler = async (event:any, context:any) => {
-  return serverHandler(event, context);
-};
-// Optional (for local testing)
+// ✅ Direct handler export
+export const handler = serverless(app);
+
+// optional (local testing)
 export const server = app;
