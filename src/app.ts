@@ -1,4 +1,5 @@
 import express from "express";
+import serverless from "serverless-http";
 import webhookRoutes from "./routes/webhook.route";
 import whatsappFlowRoutes from "./routes/whatsappFlow.route";
 
@@ -9,8 +10,12 @@ app.use(express.json());
 app.use("/webhook", webhookRoutes);
 app.use("/whatsappflow", whatsappFlowRoutes);
 
-app.get("/", (_, res) => {
-  res.send("WhatsApp Webhook Running ✅");
+app.get("/", (_req, res) => {
+  res.send("APP RUNNING ✅");
 });
 
-export default app;
+// 🔴 THIS IS IMPORTANT
+export const handler = serverless(app);
+
+// optional (local only)
+export const server = app;

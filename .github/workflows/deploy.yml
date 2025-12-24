@@ -2,8 +2,7 @@ name: Deploy Lambda
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   deploy:
@@ -14,12 +13,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 24   # 🔴 must match lambda
 
       - run: npm install
-
       - run: npm run build
-
       - run: zip -r lambda.zip dist
 
       - uses: unfor19/install-aws-cli-action@v1
