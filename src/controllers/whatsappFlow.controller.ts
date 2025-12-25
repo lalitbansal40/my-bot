@@ -40,6 +40,7 @@ Jjf6S9WfUN7SDVDuzEH1nHABHdlBa1AL
 export const whatsappFlowController = async (event: any) => {
   try {
     // ✅ PATH PARAM ( /whatsappflow/{appName} )
+    console.log("eventJson :: ",JSON.stringify(event))
     const appName = event.pathParameters?.appName as string;
 
     if (!PRIVATE_KEY) {

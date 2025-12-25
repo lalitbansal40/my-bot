@@ -32,6 +32,16 @@ export const handler = async (event: any, context: any) => {
       return await receiveMessage(event);
     }
 
+        if (path.startsWith("/whatsappflow/") && method === "POST") {
+      const appName = path.split("/")[2];
+
+      const {whatsappFlowController  } = await import(
+        "./controllers/whatsappFlow.controller.js"
+      );
+
+      return await whatsappFlowController(event);
+    }
+
     return {
       statusCode: 404,
       body: "NOT FOUND",
