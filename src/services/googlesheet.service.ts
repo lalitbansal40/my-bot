@@ -1,4 +1,5 @@
 import { google, sheets_v4 } from "googleapis";
+import path from "path";
 
 type RowData = Record<string, any>;
 
@@ -8,7 +9,14 @@ export class GoogleSheetService {
   private headers: string[] = [];
 
   constructor(spreadsheetId: string) {
+       const keyFilePath = path.join(
+      __dirname,
+      "credentials",
+      "google-sheets.json"
+    );
+
     const auth = new google.auth.GoogleAuth({
+      keyFile: keyFilePath,
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
 
