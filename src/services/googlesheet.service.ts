@@ -10,12 +10,8 @@ export class GoogleSheetService {
 
   constructor(spreadsheetId: string) {
     // 🔥 EXACT PATH (tumhare build ke according)
-    const keyPath = path.join(
-      __dirname,
-      "services",
-      "credentials",
-      "google-sheets.json"
-    );
+    const keyPath = path.join(__dirname, "google-sheets.json");
+
 
     // 🔥 JSON DIRECT READ
     const credentials = JSON.parse(
