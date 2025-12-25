@@ -55,3 +55,6 @@ coverage/
 # ===============================
 tmp/
 .cache/
+
+# Google service account credentials (DO NOT COMMIT)
+src/services/credentials/google-sheets.json
