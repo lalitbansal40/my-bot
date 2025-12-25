@@ -34,22 +34,19 @@ export const handler = async (event: any, context: any) => {
       return await receiveMessage(event);
     }
 
-    if (path.startsWith("/webhook/") === "/webhook" && method === "POST") {
-      const param = path.split("/")[2];
-      if(param === "payment"){
+    if (path === "/webhook/payment" && method === "POST") {
       const { recievePayment } = await import(
         "./controllers/webhook.controller.js"
       );
-      
+
       return await recievePayment(event);
-      }
 
     }
 
     if (path.startsWith("/whatsappflow/") && method === "POST") {
       const appName = path.split("/")[2];
 
-      const {whatsappFlowController  } = await import(
+      const { whatsappFlowController } = await import(
         "./controllers/whatsappFlow.controller.js"
       );
 
