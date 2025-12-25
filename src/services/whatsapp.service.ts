@@ -101,6 +101,18 @@ export const sendButtonMessage = async (
     buttons: WhatsAppButton[]
 ) => {
     try {
+
+        console.log(`Bearer ${WHATSAPP.TOKEN}`)
+        console.log({
+            messaging_product: "whatsapp",
+            to,
+            type: "interactive",
+            interactive: {
+                type: "button",
+                body: { text: bodyText },
+                action: { buttons },
+            },
+        })
         const res = await whatsappApi.post("/messages", {
             messaging_product: "whatsapp",
             to,
