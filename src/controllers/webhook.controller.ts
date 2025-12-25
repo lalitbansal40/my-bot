@@ -89,19 +89,19 @@ export const recievePayment = async (event: any) => {
   const response = { statusCode: 200, body: "" };
 
   try {
-    console.log("event :: ",JSON.stringify(event))
+    console.log("event :: ", JSON.stringify(event))
     const rawBody = event.isBase64Encoded
       ? Buffer.from(event.body || "", "base64").toString("utf8")
       : event.body || "";
-      
-    console.log("rawBody :: ",JSON.stringify(rawBody))
+
+    console.log("rawBody :: ", JSON.stringify(rawBody))
 
     if (!rawBody) return response;
 
     const { event: rpEvent, payload } = JSON.parse(rawBody);
 
     console.log("🔔 Razorpay Event:", rpEvent);
-    console.log("payload :: ",JSON.stringify(payload))
+    console.log("payload :: ", JSON.stringify(payload))
 
     const paymentLink = payload?.payment_link?.entity;
     const payment = payload?.payment?.entity;
@@ -132,7 +132,6 @@ export const recievePayment = async (event: any) => {
        ✅ PAYMENT SUCCESS
     ================================================= */
     if (rpEvent === "payment_link.paid") {
-      // 1️⃣ Mark PAID
       await sheet.updateByKey(
         "phone",
         phone,
@@ -143,137 +142,114 @@ export const recievePayment = async (event: any) => {
         "order details"
       );
 
-      console.log(
-        "phone",
-        phone,
-        {
-          payment_status: "PAID",
-          updated_at: new Date().toISOString(),
-        },
-        "order details"
-      )
+      const order = await sheet.getByKey("phone", phone, "order details");
+      console.log("order :: ",JSON.stringify(order))
+      if (!order) return response;
 
-      // ⚡ Heavy logic async (after 200)
-      Promise.resolve().then(async () => {
-        const order = await sheet.getByKey("phone", phone, "order details");
-        console.log("order :: ",JSON.stringify(order))
-        if (!order) return;
+      let borzoOrderId = "";
 
-        let borzoOrderId = "";
+      try {
+        const borzoClient = new BorzoApiClient(BORZO_API_KEY, false);
 
-        try {
-          const borzoClient = new BorzoApiClient(BORZO_API_KEY, false);
+        const borzoPayload:any = {
+          matter: order.item_name,
+          payment_method: "balance",
+          points: [
+            {
+              address: SHOP_ADDRESS,
+              latitude: REFERENCE_COORDS.lat,
+              longitude: REFERENCE_COORDS.lng,
+              contact_person: {
+                name: "Cake Arena",
+                phone: SHOP_PHONE,
+              },
+            },
+            {
+              address: order.address,
+              latitude: Number(order.latitude),
+              longitude: Number(order.longitude),
+              contact_person: {
+                name: order.name,
+                phone,
+              },
+            },
+          ],
+        };
 
-          const borzoPayload: any = {
-            matter: order.item_name,
-            payment_method: "balance",
-            points: [
-              {
-                address: SHOP_ADDRESS,
-                latitude: REFERENCE_COORDS.lat,
-                longitude: REFERENCE_COORDS.lng,
-                contact_person: {
-                  name: "Cake Arena",
-                  phone: SHOP_PHONE,
-                },
-              },
-              {
-                address: order.address,
-                latitude: Number(order.latitude),
-                longitude: Number(order.longitude),
-                contact_person: {
-                  name: order.name,
-                  phone,
-                },
-              },
-            ],
-          };
-          console.log("borzopayload :: ",JSON.stringify(borzoPayload))
-          const borzoResp = await borzoClient.createOrder(borzoPayload);
-          console.log("borzoResp :: ",JSON.stringify(borzoResp));
-          if (borzoResp?.order?.order_id) {
-            borzoOrderId = borzoResp.order.order_id;
-          console.log("phone",
-              phone,
-              {
-                delivery_partner: "BORZO",
-                delivery_status: "CREATED",
-                borzo_order_id: borzoOrderId,
-                updated_at: new Date().toISOString(),
-              },
-              "order details")
-            await sheet.updateByKey(
-              "phone",
-              phone,
-              {
-                delivery_partner: "BORZO",
-                delivery_status: "CREATED",
-                borzo_order_id: borzoOrderId,
-                updated_at: new Date().toISOString(),
-              },
-              "order details"
-            );
-          } else {
-            throw new Error("Borzo failed");
-          }
-        } catch {
+        const borzoResp = await borzoClient.createOrder(borzoPayload);
+         console.log("borzoResp :: ",JSON.stringify(borzoResp))
+        if (borzoResp?.order?.order_id) {
+          borzoOrderId = borzoResp.order.order_id;
+
           await sheet.updateByKey(
             "phone",
             phone,
             {
-              delivery_partner: "MANUAL",
-              delivery_status: "PENDING",
+              delivery_partner: "BORZO",
+              delivery_status: "CREATED",
+              borzo_order_id: borzoOrderId,
               updated_at: new Date().toISOString(),
             },
             "order details"
           );
+        } else {
+          throw new Error("Borzo failed");
         }
-
-        console.log("        it is runninign perfectly      ")
-        // 📩 Customer WhatsApp
-        await sendTextMessage(
+      } catch {
+        await sheet.updateByKey(
+          "phone",
           phone,
-          `✅ *Payment Successful!*
+          {
+            delivery_partner: "MANUAL",
+            delivery_status: "PENDING",
+            updated_at: new Date().toISOString(),
+          },
+          "order details"
+        );
+      }
+
+      await sendTextMessage(
+        phone,
+        `✅ *Payment Successful!*
 
 🍰 *Your order is confirmed*
 💰 Amount Paid: ₹${amount}
 
 🚚 *Delivery Status:* ${borzoOrderId
-            ? "Delivery scheduled via Borzo 🚚"
-            : "Our team will contact you shortly"
-          }
+          ? "Delivery scheduled via Borzo 🚚"
+          : "Our team will contact you shortly"
+        }
 
 📦 *Order ID:* ${borzoOrderId || "Will be shared soon"}
 
 Thank you for ordering with us 🎂`
-        );
+      );
 
-        // 📢 Internal notifications
-        const items = order.item_name.split(",").map((i: string) => i.trim());
-     
-        const cakeMap = cakeData.reduce<Record<string, any>>((acc, cake) => {
-          acc[cake.id] = cake;
-          return acc;
-        }, {});
+      const items = order.item_name.split(",").map((i: string) => i.trim());
 
-        for (const notifyNumber of INTERNAL_NOTIFY_NUMBERS) {
-          for (const itemKey of items) {
-            const cake = cakeMap[itemKey];
-            if (!cake) continue;
+      const cakeMap = cakeData.reduce<Record<string, any>>((acc, cake) => {
+        acc[cake.id] = cake;
+        return acc;
+      }, {});
 
-            await sendUtilityTemplate(notifyNumber, "order_confiremed", {
-              headerImageUrl: cake.image_url,
-              parameters: [
-                borzoOrderId || "PENDING",
-                cake.title,
-              ],
-            });
-          }
+      for (const notifyNumber of INTERNAL_NOTIFY_NUMBERS) {
+        for (const itemKey of items) {
+          const cake = cakeMap[itemKey];
+          if (!cake) continue;
+
+          await sendUtilityTemplate(notifyNumber, "order_confiremed", {
+            headerImageUrl: cake.image_url,
+            parameters: [
+              borzoOrderId || "PENDING",
+              cake.title,
+            ],
+          });
         }
-      });
+      }
 
       return response;
     }
+
 
     /* =================================================
        ❌ PAYMENT FAILED
