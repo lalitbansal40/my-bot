@@ -64,13 +64,12 @@ export const whatsappFlowController = async (event: any) => {
     /* ===============================
        2️⃣ Validate private key
     =============================== */
-    if (!process.env.PRIVATE_KEY) {
+    if (!PRIVATE_KEY) {
       throw new Error(
         'Private key is empty. Please check env variable "PRIVATE_KEY".'
       );
     }
 
-    const PRIVATE_KEY = process.env.PRIVATE_KEY.replace(/\\n/g, "\n");
 
     /* ===============================
        3️⃣ Parse body
