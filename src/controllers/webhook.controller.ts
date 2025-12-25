@@ -31,40 +31,38 @@ export const verifyWebhook = async (event: any) => {
    WHATSAPP MESSAGE RECEIVE
 ===================================================== */
 export const receiveMessage = async (event: any) => {
-  /* ⚡ Always respond immediately */
   const response = { statusCode: 200, body: "" };
 
   try {
-    console.log("event :: ",JSON.stringify(event))
     const rawBody = event.isBase64Encoded
       ? Buffer.from(event.body || "", "base64").toString("utf8")
       : event.body || "";
+
     if (!rawBody) return response;
 
     const body = JSON.parse(rawBody);
     const entry = body.entry?.[0];
     const change = entry?.changes?.[0];
     const value = change?.value;
+
     if (!value?.messages) return response;
 
     const userName =
       value.contacts?.[0]?.profile?.name || "Customer";
 
-    /* 🔥 DO NOT await (avoid timeout) */
+    // ✅ THIS IS THE FIX
     for (const message of value.messages) {
-      import("../services/message.service")
-        .then(({ handleIncomingMessage }) =>
-          handleIncomingMessage(message, userName)
-        )
-        .catch(err =>
-          console.error("handleIncomingMessage error:", err)
-        );
+      const { handleIncomingMessage } = await import(
+        "../services/message.service"
+      );
+
+      await handleIncomingMessage(message, userName);
     }
 
     return response;
   } catch (err) {
     console.error("receiveMessage error:", err);
-    return response; // still 200 for WhatsApp
+    return response;
   }
 };
 
