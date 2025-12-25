@@ -118,32 +118,19 @@ export const sendButtonMessage = async (
   buttons: WhatsAppButton[]
 ) => {
   try {
-    /* 🔒 WhatsApp validation */
     if (buttons.length > 3) {
-      throw new Error("WhatsApp allows a maximum of 3 buttons");
+      throw new Error("WhatsApp allows max 3 buttons");
     }
 
     buttons.forEach((btn) => {
       if (btn.reply.title.length > 20) {
-        throw new Error(
-          `Button title too long (max 20 chars): ${btn.reply.title}`
-        );
+        throw new Error(`Button title too long: ${btn.reply.title}`);
       }
     });
 
-    const configData = {
-       baseURL: `https://graph.facebook.com/v24.0/${WHATSAPP.PHONE_NUMBER_ID}`,
-      messaging_product: "whatsapp",
-      to,
-      type: "interactive",
-      interactive: {
-        type: "button",
-        body: { text: bodyText },
-        action: { buttons },
-      }
-    }
-    console.log("configData ::",JSON.stringify(configData))
-    const res = await whatsappApi.post("/messages", {
+    const url = `https://graph.facebook.com/v24.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+
+    const payload = {
       messaging_product: "whatsapp",
       to,
       type: "interactive",
@@ -152,14 +139,27 @@ export const sendButtonMessage = async (
         body: { text: bodyText },
         action: { buttons },
       },
+    };
+
+    console.log("📤 WhatsApp URL:", url);
+    console.log("📤 Payload:", JSON.stringify(payload, null, 2));
+
+    const res = await axios.post(url, payload, {
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 10000,
     });
 
-    console.log("✅ sendButtonMessage success:", res.data);
-  } catch (error) {
-    logAxiosError("sendButtonMessage failed", error);
+    console.log("✅ WhatsApp API SUCCESS:", res.data);
+  } catch (error: any) {
+    console.error("❌ sendButtonMessage FAILED");
+    console.error("Status:", error?.response?.status);
+    console.error("Data:", error?.response?.data);
+    console.error("Message:", error.message);
   }
 };
-
 /* =====================================================
    4️⃣ SEND FLOW MESSAGE
 ===================================================== */
