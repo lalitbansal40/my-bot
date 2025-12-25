@@ -1,7 +1,4 @@
 import { Client, AddressType } from "@googlemaps/google-maps-services-js";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 /* -------------------- GOOGLE MAPS SETUP -------------------- */
 const client = new Client({});

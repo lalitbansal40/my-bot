@@ -1,8 +1,6 @@
 import { decryptRequest, DecryptRequestResult, encryptResponse, FlowEndpointException } from "../utils/encryption";
 import { Request, Response } from "express";
 import vendors from "../utils/vendors";
-import dotenv from "dotenv";
-dotenv.config();
 const PRIVATE_KEY = `-----BEGIN ENCRYPTED PRIVATE KEY-----
 MIIFJDBWBgkqhkiG9w0BBQ0wSTAxBgkqhkiG9w0BBQwwJAQQ+qf6sAUFg/1rHU5b
 20EJFQICCAAwDAYIKoZIhvcNAgkFADAUBggqhkiG9w0DBwQI+3uoPFHWXzYEggTI
