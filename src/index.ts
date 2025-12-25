@@ -1,3 +1,6 @@
+process.removeAllListeners("warning");
+
+
 export const handler = async (event: any, context: any) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
