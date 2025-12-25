@@ -37,20 +37,53 @@ Jjf6S9WfUN7SDVDuzEH1nHABHdlBa1AL
 
 export const whatsappFlowController = async (event: any) => {
   try {
-    // ✅ PATH PARAM ( /whatsappflow/{appName} )
-    console.log("eventJson :: ",JSON.stringify(event))
-    const appName = event.pathParameters?.appName as string;
+    console.log("eventJson ::", JSON.stringify(event));
 
-    if (!PRIVATE_KEY) {
+    /* ===============================
+       1️⃣ Extract appName SAFELY
+    =============================== */
+    let appName: string | undefined;
+
+    if (event.pathParameters?.appName) {
+      // API Gateway style
+      appName = event.pathParameters.appName;
+    } else if (event.rawPath) {
+      // Lambda Function URL style
+      // /whatsappflow/cake-arena
+      const parts = event.rawPath.split("/").filter(Boolean);
+      appName = parts[1]; // index 0 = whatsappflow, 1 = appName
+    }
+
+    if (!appName) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "appName not found in path" }),
+      };
+    }
+
+    /* ===============================
+       2️⃣ Validate private key
+    =============================== */
+    if (!process.env.PRIVATE_KEY) {
       throw new Error(
         'Private key is empty. Please check env variable "PRIVATE_KEY".'
       );
     }
 
-    // Lambda body is string
-    const body = JSON.parse(event.body || "{}");
+    const PRIVATE_KEY = process.env.PRIVATE_KEY.replace(/\\n/g, "\n");
 
-    let decryptedRequest: DecryptRequestResult<any>;
+    /* ===============================
+       3️⃣ Parse body
+    =============================== */
+    const body =
+      typeof event.body === "string"
+        ? JSON.parse(event.body)
+        : event.body;
+
+    /* ===============================
+       4️⃣ Decrypt request
+    =============================== */
+    let decryptedRequest;
 
     try {
       decryptedRequest = decryptRequest(
@@ -60,16 +93,9 @@ export const whatsappFlowController = async (event: any) => {
       );
     } catch (err: any) {
       if (err instanceof FlowEndpointException) {
-        return {
-          statusCode: err.statusCode,
-          body: ""
-        };
+        return { statusCode: err.statusCode, body: "" };
       }
-
-      return {
-        statusCode: 500,
-        body: ""
-      };
+      return { statusCode: 500, body: "" };
     }
 
     const { aesKeyBuffer, initialVectorBuffer, decryptedBody } =
@@ -77,6 +103,9 @@ export const whatsappFlowController = async (event: any) => {
 
     console.log("💬 Decrypted Request:", decryptedBody);
 
+    /* ===============================
+       5️⃣ Resolve vendor
+    =============================== */
     const VendorFlowClass = vendors[appName]?.flowAppClass;
 
     if (!VendorFlowClass) {
@@ -85,9 +114,9 @@ export const whatsappFlowController = async (event: any) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           errors: {
-            message: `Invalid appName "${appName}". No flow app registered.`
-          }
-        })
+            message: `Invalid appName "${appName}". No flow app registered.`,
+          },
+        }),
       };
     }
 
@@ -98,7 +127,9 @@ export const whatsappFlowController = async (event: any) => {
       appName
     );
 
-    // ✅ FINAL ENCRYPTED RESPONSE
+    /* ===============================
+       6️⃣ Encrypt response
+    =============================== */
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/octet-stream" },
@@ -106,7 +137,7 @@ export const whatsappFlowController = async (event: any) => {
         screenResponse,
         aesKeyBuffer,
         initialVectorBuffer
-      )
+      ),
     };
   } catch (error) {
     console.error("Flow controller error:", error);
@@ -117,9 +148,9 @@ export const whatsappFlowController = async (event: any) => {
       body: JSON.stringify({
         errors: {
           message:
-            "Unhandled endpoint request. Make sure you handle the request action & screen logged above."
-        }
-      })
+            "Unhandled endpoint request. Make sure you handle the request action & screen logged above.",
+        },
+      }),
     };
   }
 };
