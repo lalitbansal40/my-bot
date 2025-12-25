@@ -30,6 +30,7 @@ export const handler = async (event: any, context: any) => {
       const { receiveMessage } = await import(
         "./controllers/webhook.controller.js"
       );
+      
       return await receiveMessage(event);
     }
 

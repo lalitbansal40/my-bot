@@ -125,6 +125,7 @@ export const handleIncomingMessage = async (
         /* ===============================
            SEND WHATSAPP MESSAGE
         =============================== */
+        console.log("flowdata cakedata :: ",JSON.stringify(flowData.cakeData))
         await sendTextMessage(
             from,
             `🍰 *Order Summary*
