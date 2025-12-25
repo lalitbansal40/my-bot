@@ -1,7 +1,24 @@
 
+const SHEET_ID = "1xlAP136l66VtTjoMkdTEueo-FXKD7_L1RJUlaxefXzI";
+const REFERENCE_COORDS = {
+  lat: 26.838606673565817,
+  lng: 75.82641420437723,
+};
+
+const INTERNAL_NOTIFY_NUMBERS = [
+  "919664114023",
+  "917413048269",
+];
+/* =====================================================
+   SHOP CONSTANTS (FIXED)
+===================================================== */
+const SHOP_ADDRESS =
+  "Shiv Bhole Bakers, vivek vihar mod, jagatpura, Jaipur, Rajasthan, India";
+const SHOP_PHONE = "9664114023";
+
 export const verifyWebhook = async (event: any) => {
   try {
-    console.log("event :: ",JSON.stringify(event))
+    console.log("event :: ", JSON.stringify(event))
     const query = event.queryStringParameters || {};
 
     const mode = query["hub.mode"];
@@ -68,7 +85,7 @@ export const receiveMessage = async (event: any) => {
 
 
 export const recievePayment = async (event: any) => {
-  /* ⚡ Razorpay requires instant 200 */
+  // ⚡ Razorpay needs instant 200
   const response = { statusCode: 200, body: "" };
 
   try {
@@ -80,60 +97,217 @@ export const recievePayment = async (event: any) => {
 
     const { event: rpEvent, payload } = JSON.parse(rawBody);
 
+    console.log("🔔 Razorpay Event:", rpEvent);
+
     const paymentLink = payload?.payment_link?.entity;
     const payment = payload?.payment?.entity;
 
     const phone = paymentLink?.customer?.contact;
-    const amount = payment?.amount
-      ? payment.amount / 100
-      : undefined;
+    const amount = payment?.amount ? payment.amount / 100 : undefined;
 
-    if (!phone) return response;
+    if (!phone) {
+      console.error("❌ Phone missing in Razorpay payload");
+      return response;
+    }
 
-    /* 🔥 Lazy imports (avoid init timeout) */
+    // 🔥 Lazy imports (Lambda-safe)
     const { GoogleSheetService } = await import("../services/googlesheet.service");
     const { BorzoApiClient } = await import("../services/borzo.service");
-    const { sendTextMessage, sendUtilityTemplate } = await import("../services/whatsapp.service");
+    const {
+      sendTextMessage,
+      sendUtilityTemplate
+    } = await import("../services/whatsapp.service");
+
     const cakeData = (await import("../cakeData.json")).default;
 
-    const SHEET_ID = process.env.SHEET_ID!;
     const BORZO_API_KEY = process.env.BORZO_API_KEY!;
 
     const sheet = new GoogleSheetService(SHEET_ID);
 
+    /* =================================================
+       ✅ PAYMENT SUCCESS
+    ================================================= */
     if (rpEvent === "payment_link.paid") {
+      // 1️⃣ Mark PAID
       await sheet.updateByKey(
         "phone",
         phone,
-        { payment_status: "PAID", updated_at: new Date().toISOString() },
+        {
+          payment_status: "PAID",
+          updated_at: new Date().toISOString(),
+        },
         "order details"
       );
 
-      /* Remaining heavy logic continues async */
+      // ⚡ Heavy logic async (after 200)
       Promise.resolve().then(async () => {
-        // Borzo + WhatsApp logic here
+        const order = await sheet.getByKey("phone", phone, "order details");
+        if (!order) return;
+
+        let borzoOrderId = "";
+
+        try {
+          const borzoClient = new BorzoApiClient(BORZO_API_KEY, false);
+
+          const borzoPayload: any = {
+            matter: order.item_name,
+            payment_method: "balance",
+            points: [
+              {
+                address: SHOP_ADDRESS,
+                latitude: REFERENCE_COORDS.lat,
+                longitude: REFERENCE_COORDS.lng,
+                contact_person: {
+                  name: "Cake Arena",
+                  phone: SHOP_PHONE,
+                },
+              },
+              {
+                address: order.address,
+                latitude: Number(order.latitude),
+                longitude: Number(order.longitude),
+                contact_person: {
+                  name: order.name,
+                  phone,
+                },
+              },
+            ],
+          };
+
+          const borzoResp = await borzoClient.createOrder(borzoPayload);
+
+          if (borzoResp?.order?.order_id) {
+            borzoOrderId = borzoResp.order.order_id;
+
+            await sheet.updateByKey(
+              "phone",
+              phone,
+              {
+                delivery_partner: "BORZO",
+                delivery_status: "CREATED",
+                borzo_order_id: borzoOrderId,
+                updated_at: new Date().toISOString(),
+              },
+              "order details"
+            );
+          } else {
+            throw new Error("Borzo failed");
+          }
+        } catch {
+          await sheet.updateByKey(
+            "phone",
+            phone,
+            {
+              delivery_partner: "MANUAL",
+              delivery_status: "PENDING",
+              updated_at: new Date().toISOString(),
+            },
+            "order details"
+          );
+        }
+
+        // 📩 Customer WhatsApp
+        await sendTextMessage(
+          phone,
+          `✅ *Payment Successful!*
+
+🍰 *Your order is confirmed*
+💰 Amount Paid: ₹${amount}
+
+🚚 *Delivery Status:* ${borzoOrderId
+            ? "Delivery scheduled via Borzo 🚚"
+            : "Our team will contact you shortly"
+          }
+
+📦 *Order ID:* ${borzoOrderId || "Will be shared soon"}
+
+Thank you for ordering with us 🎂`
+        );
+
+        // 📢 Internal notifications
+        const items = order.item_name.split(",").map((i: string) => i.trim());
+
+        const cakeMap = cakeData.reduce<Record<string, any>>((acc, cake) => {
+          acc[cake.id] = cake;
+          return acc;
+        }, {});
+
+        for (const notifyNumber of INTERNAL_NOTIFY_NUMBERS) {
+          for (const itemKey of items) {
+            const cake = cakeMap[itemKey];
+            if (!cake) continue;
+
+            await sendUtilityTemplate(notifyNumber, "order_confiremed", {
+              headerImageUrl: cake.image_url,
+              parameters: [
+                borzoOrderId || "PENDING",
+                cake.title,
+              ],
+            });
+          }
+        }
       });
 
       return response;
     }
 
+    /* =================================================
+       ❌ PAYMENT FAILED
+    ================================================= */
     if (rpEvent === "payment.failed") {
       await sheet.updateByKey(
         "phone",
         phone,
-        { payment_status: "FAILED", updated_at: new Date().toISOString() },
+        {
+          payment_status: "FAILED",
+          updated_at: new Date().toISOString(),
+        },
         "order details"
       );
 
-      await sendTextMessage(phone, "❌ Payment failed");
+      await sendTextMessage(
+        phone,
+        `❌ *Payment Failed*
+
+Your payment could not be completed.
+Please try again.`
+      );
+
+      return response;
+    }
+
+    /* =================================================
+       🚫 PAYMENT CANCELLED
+    ================================================= */
+    if (rpEvent === "payment_link.cancelled") {
+      await sheet.updateByKey(
+        "phone",
+        phone,
+        {
+          payment_status: "CANCELLED",
+          updated_at: new Date().toISOString(),
+        },
+        "order details"
+      );
+
+      await sendTextMessage(
+        phone,
+        `🚫 *Payment Cancelled*
+
+If you still want to place the order,
+please message us again.`
+      );
+
+      return response;
     }
 
     return response;
   } catch (err) {
-    console.error("recievePayment error:", err);
+    console.error("❌ recievePayment error:", err);
     return response;
   }
 };
+
 
 
 

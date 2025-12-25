@@ -9,7 +9,7 @@ export const handler = async (event: any, context: any) => {
 
     const rawPath = event?.rawPath || event?.path || "/";
     const path = rawPath.replace(/\/$/, "") || "/";
-console.log({path})
+    console.log({ path })
     // 🔹 Health check
     if (path === "/" && method === "GET") {
       return {
