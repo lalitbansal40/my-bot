@@ -143,9 +143,20 @@ export const recievePayment = async (event: any) => {
         "order details"
       );
 
+      console.log(
+        "phone",
+        phone,
+        {
+          payment_status: "PAID",
+          updated_at: new Date().toISOString(),
+        },
+        "order details"
+      )
+
       // ⚡ Heavy logic async (after 200)
       Promise.resolve().then(async () => {
         const order = await sheet.getByKey("phone", phone, "order details");
+        console.log("order :: ",JSON.stringify(order))
         if (!order) return;
 
         let borzoOrderId = "";
@@ -177,12 +188,20 @@ export const recievePayment = async (event: any) => {
               },
             ],
           };
-
+          console.log("borzopayload :: ",JSON.stringify(borzoPayload))
           const borzoResp = await borzoClient.createOrder(borzoPayload);
-
+          console.log("borzoResp :: ",JSON.stringify(borzoResp));
           if (borzoResp?.order?.order_id) {
             borzoOrderId = borzoResp.order.order_id;
-
+          console.log("phone",
+              phone,
+              {
+                delivery_partner: "BORZO",
+                delivery_status: "CREATED",
+                borzo_order_id: borzoOrderId,
+                updated_at: new Date().toISOString(),
+              },
+              "order details")
             await sheet.updateByKey(
               "phone",
               phone,
@@ -210,6 +229,7 @@ export const recievePayment = async (event: any) => {
           );
         }
 
+        console.log("        it is runninign perfectly      ")
         // 📩 Customer WhatsApp
         await sendTextMessage(
           phone,
@@ -230,7 +250,7 @@ Thank you for ordering with us 🎂`
 
         // 📢 Internal notifications
         const items = order.item_name.split(",").map((i: string) => i.trim());
-
+     
         const cakeMap = cakeData.reduce<Record<string, any>>((acc, cake) => {
           acc[cake.id] = cake;
           return acc;
