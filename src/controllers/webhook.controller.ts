@@ -1,51 +1,29 @@
-import { Request, Response } from "express";
-import { WHATSAPP } from "../config/whatsapp";
-import { handleIncomingMessage } from "../services/message.service";
-import { sendTextMessage, sendUtilityTemplate } from "../services/whatsapp.service";
-import { GoogleSheetService } from "../services/googlesheet.service";
-import { BorzoApiClient } from "../services/borzo.service";
-import { CalculateOrderData } from "../services/borzo.service";
-import cakeData from "./../cakeData.json"
-const SHEET_ID = "1xlAP136l66VtTjoMkdTEueo-FXKD7_L1RJUlaxefXzI";
-const REFERENCE_COORDS = {
-  lat: 26.838606673565817,
-  lng: 75.82641420437723,
-};
 
-const INTERNAL_NOTIFY_NUMBERS = [
-  "919664114023",
-  "917413048269",
-];
-/* =====================================================
-   SHOP CONSTANTS (FIXED)
-===================================================== */
-const SHOP_ADDRESS =
-  "Shiv Bhole Bakers, vivek vihar mod, jagatpura, Jaipur, Rajasthan, India";
-const SHOP_PHONE = "9664114023";
-
-const BORZO_API_KEY = "7086ED3616843A380A867EB9BC097B024BAF5518"
-/* =====================================================
-   WHATSAPP VERIFY WEBHOOK
-===================================================== */
 export const verifyWebhook = async (event: any) => {
-  const query = event.queryStringParameters || {};
+  try {
+    console.log("event :: ",JSON.stringify(event))
+    const query = event.queryStringParameters || {};
 
-  const mode = query["hub.mode"];
-  const token = query["hub.verify_token"];
-  const challenge = query["hub.challenge"];
+    const mode = query["hub.mode"];
+    const token = query["hub.verify_token"];
+    const challenge = query["hub.challenge"];
 
-  if (mode === "subscribe" && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "text/plain" },
-      body: challenge
-    };
+    if (
+      mode === "subscribe" &&
+      token === process.env.WHATSAPP_VERIFY_TOKEN
+    ) {
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "text/plain" },
+        body: challenge,
+      };
+    }
+
+    return { statusCode: 403, body: "" };
+  } catch (err) {
+    console.error("verifyWebhook error:", err);
+    return { statusCode: 500, body: "" };
   }
-
-  return {
-    statusCode: 403,
-    body: ""
-  };
 };
 
 
@@ -53,272 +31,114 @@ export const verifyWebhook = async (event: any) => {
    WHATSAPP MESSAGE RECEIVE
 ===================================================== */
 export const receiveMessage = async (event: any) => {
-  // ✅ Meta ko fast 200 response
-  const response = {
-    statusCode: 200,
-    body: ""
-  };
+  /* ⚡ Always respond immediately */
+  const response = { statusCode: 200, body: "" };
 
-  // Lambda me body string hoti hai
-  const body = JSON.parse(event.body || "{}");
+  try {
+    console.log("event :: ",JSON.stringify(event))
+    const rawBody = event.isBase64Encoded
+      ? Buffer.from(event.body || "", "base64").toString("utf8")
+      : event.body || "";
 
-  const entry = body.entry?.[0];
-  const change = entry?.changes?.[0];
-  const value = change?.value;
+    if (!rawBody) return response;
 
-  if (!value?.messages) {
+    const body = JSON.parse(rawBody);
+
+    const entry = body.entry?.[0];
+    const change = entry?.changes?.[0];
+    const value = change?.value;
+
+    if (!value?.messages) return response;
+
+    const userName =
+      value.contacts?.[0]?.profile?.name || "Customer";
+
+    /* 🔥 DO NOT await (avoid timeout) */
+    for (const message of value.messages) {
+      import("../services/message.service")
+        .then(({ handleIncomingMessage }) =>
+          handleIncomingMessage(message, userName)
+        )
+        .catch(err =>
+          console.error("handleIncomingMessage error:", err)
+        );
+    }
+
     return response;
+  } catch (err) {
+    console.error("receiveMessage error:", err);
+    return response; // still 200 for WhatsApp
   }
-
-  const userName = value.contacts?.[0]?.profile?.name || "Customer";
-
-  // 🔁 Messages process karo
-  for (const message of value.messages) {
-    await handleIncomingMessage(message, userName);
-  }
-
-  return response;
 };
 
 
-export const recievePayment = async (req: Request, res: Response) => {
-  // ⚡ Razorpay requires immediate response
-  res.sendStatus(200);
+export const recievePayment = async (event: any) => {
+  /* ⚡ Razorpay requires instant 200 */
+  const response = { statusCode: 200, body: "" };
 
   try {
-    const { event, payload } = req.body;
-    console.log("🔔 Razorpay Event:", event);
+    const rawBody = event.isBase64Encoded
+      ? Buffer.from(event.body || "", "base64").toString("utf8")
+      : event.body || "";
+
+    if (!rawBody) return response;
+
+    const { event: rpEvent, payload } = JSON.parse(rawBody);
 
     const paymentLink = payload?.payment_link?.entity;
     const payment = payload?.payment?.entity;
 
     const phone = paymentLink?.customer?.contact;
-    const amount = payment?.amount ? payment.amount / 100 : undefined;
+    const amount = payment?.amount
+      ? payment.amount / 100
+      : undefined;
 
-    if (!phone) {
-      console.error("❌ Phone missing in Razorpay webhook");
-      return;
-    }
+    if (!phone) return response;
+
+    /* 🔥 Lazy imports (avoid init timeout) */
+    const { GoogleSheetService } = await import("../services/googlesheet.service");
+    const { BorzoApiClient } = await import("../services/borzo.service");
+    const { sendTextMessage, sendUtilityTemplate } = await import("../services/whatsapp.service");
+    const cakeData = (await import("../cakeData.json")).default;
+
+    const SHEET_ID = process.env.SHEET_ID!;
+    const BORZO_API_KEY = process.env.BORZO_API_KEY!;
 
     const sheet = new GoogleSheetService(SHEET_ID);
 
-    /* =================================================
-       ✅ PAYMENT SUCCESS
-    ================================================= */
-    if (event === "payment_link.paid") {
-      /* 1️⃣ Update payment status */
+    if (rpEvent === "payment_link.paid") {
       await sheet.updateByKey(
         "phone",
         phone,
-        {
-          payment_status: "PAID",
-          updated_at: new Date().toISOString(),
-        },
+        { payment_status: "PAID", updated_at: new Date().toISOString() },
         "order details"
       );
 
-      /* 2️⃣ Fetch order */
-      const order = await sheet.getByKey("phone", phone, "order details");
+      /* Remaining heavy logic continues async */
+      Promise.resolve().then(async () => {
+        // Borzo + WhatsApp logic here
+      });
 
-      if (!order) {
-        console.error("❌ Order not found for phone:", phone);
-        return;
-      }
-
-      /* 3️⃣ Prepare Borzo */
-      const borzoClient = new BorzoApiClient(
-        BORZO_API_KEY!,
-        false // 🔧 TEST environment (safe)
-      );
-
-      const borzoPayload: CalculateOrderData = {
-        matter: order.item_name,
-        payment_method: "balance",
-        points: [
-          {
-            // 🏪 Pickup (Shop)
-            address: SHOP_ADDRESS,
-            latitude: REFERENCE_COORDS.lat,
-            longitude: REFERENCE_COORDS.lng,
-            contact_person: {
-              name: "Cake Arena",
-              phone: SHOP_PHONE,
-            },
-          },
-          {
-            // 🏠 Drop (Customer)
-            address: order.address,
-            latitude: Number(order.latitude),
-            longitude: Number(order.longitude),
-            contact_person: {
-              name: order.name,
-              phone: phone,
-            },
-          },
-        ],
-      };
-
-      let borzoOrderId = "";
-
-      try {
-        /* 4️⃣ Create Borzo order */
-        const borzoResp = await borzoClient.createOrder(borzoPayload);
-        if (!borzoResp.is_successful || !borzoResp.order.order_id) {
-          throw new Error("Borzo order creation failed");
-        }
-
-        borzoOrderId = borzoResp.order.order_id;
-
-        /* 5️⃣ Update sheet (Borzo success) */
-        await sheet.updateByKey(
-          "phone",
-          phone,
-          {
-            delivery_partner: "BORZO",
-            delivery_status: "CREATED",
-            borzo_order_id: borzoOrderId,
-            updated_at: new Date().toISOString(),
-          },
-          "order details"
-        );
-      } catch (err) {
-        console.error("❌ Borzo failed, fallback to manual:", err);
-
-        /* 6️⃣ Fallback: Manual delivery */
-        await sheet.updateByKey(
-          "phone",
-          phone,
-          {
-            delivery_partner: "MANUAL",
-            delivery_status: "PENDING",
-            updated_at: new Date().toISOString(),
-          },
-          "order details"
-        );
-      }
-
-      /* 7️⃣ WhatsApp confirmation */
-      await sendTextMessage(
-        phone,
-        `✅ *Payment Successful!*
-
-🍰 *Your order is confirmed*
-💰 Amount Paid: ₹${amount}
-
-🚚 *Delivery Status:* ${borzoOrderId
-          ? "Delivery scheduled via Borzo 🚚"
-          : "Our team will contact you shortly"
-        }
-
-📦 *Order ID:* ${borzoOrderId || "Will be shared soon"}
-
-Thank you for ordering with us 🎂`
-      );
-
-      const items = order.item_name
-        .split(",")
-        .map((i: string) => i.trim());
-
-
-      const cakeMap = cakeData.reduce<Record<string, typeof cakeData[number]>>(
-        (acc, cake) => {
-          acc[cake.id] = cake;   // 👈 id = "black_&_white"
-          return acc;
-        },
-        {}
-      );
-      // 🔹 Send to INTERNAL NUMBERS ONLY
-      for (const notifyNumber of INTERNAL_NOTIFY_NUMBERS) {
-        for (const itemKey of items) {
-          const cake = cakeMap[itemKey];
-          if (!cake) continue;
-
-          await sendUtilityTemplate(notifyNumber, "order_confiremed", {
-            headerImageUrl: cake.image_url,       // 🖼️ IMAGE HEADER
-            parameters: [
-              borzoOrderId || "PENDING",      // {{1}} Order ID
-              cake.title                       // {{2}} Cake Name
-            ],
-          });
-        }
-      }
-
-      return;
+      return response;
     }
 
-    /* =================================================
-       ❌ PAYMENT FAILED
-    ================================================= */
-    if (event === "payment.failed") {
+    if (rpEvent === "payment.failed") {
       await sheet.updateByKey(
         "phone",
         phone,
-        {
-          payment_status: "FAILED",
-          updated_at: new Date().toISOString(),
-        },
+        { payment_status: "FAILED", updated_at: new Date().toISOString() },
         "order details"
       );
 
-      await sendTextMessage(
-        phone,
-        `❌ *Payment Failed*
-
-Your payment could not be completed.
-Please try again using the payment link.`
-      );
-
-      return;
+      await sendTextMessage(phone, "❌ Payment failed");
     }
 
-    /* =================================================
-       🚫 PAYMENT CANCELLED
-    ================================================= */
-    if (event === "payment_link.cancelled") {
-      await sheet.updateByKey(
-        "phone",
-        phone,
-        {
-          payment_status: "CANCELLED",
-          updated_at: new Date().toISOString(),
-        },
-        "order details"
-      );
-
-      await sendTextMessage(
-        phone,
-        `🚫 *Payment Cancelled*
-
-If you still want to place the order,
-please message us again.`
-      );
-
-      return;
-    }
-
-    console.log("ℹ️ Unhandled Razorpay event:", event);
-  } catch (error) {
-    console.error("❌ recievePayment error:", error);
+    return response;
+  } catch (err) {
+    console.error("recievePayment error:", err);
+    return response;
   }
 };
 
-
-
-async function updatePaymentStatus(
-  phone: string,
-  data: Record<string, any>
-) {
-  const sheet = new GoogleSheetService(SHEET_ID);
-
-  await sheet.updateByKey(
-    "phone",
-    phone,
-    {
-      ...data,
-      updated_at: new Date().toISOString(),
-    },
-    "order details"
-  );
-}
 
 

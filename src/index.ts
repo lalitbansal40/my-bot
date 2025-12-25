@@ -1,22 +1,47 @@
-import { verifyWebhook, receiveMessage } from "./controllers/webhook.controller";
-
 export const handler = async (event: any, context: any) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
-  const method = event?.requestContext?.http?.method;
-  const path = (event?.rawPath || "/").replace(/\/$/, "") || "/";
+  try {
+    const method =
+      event?.requestContext?.http?.method ||
+      event?.httpMethod;
 
-  if (path === "/" && method === "GET") {
-    return { statusCode: 200, body: "APP RUNNING ✅" };
+    const rawPath = event?.rawPath || event?.path || "/";
+    const path = rawPath.replace(/\/$/, "") || "/";
+
+    // 🔹 Health check
+    if (path === "/" && method === "GET") {
+      return {
+        statusCode: 200,
+        body: "APP RUNNING ✅",
+      };
+    }
+
+    // 🔹 Lazy import (IMPORTANT)
+    if (path === "/webhook" && method === "GET") {
+      const { verifyWebhook } = await import(
+        "./controllers/webhook.controller.js"
+      );
+      return await verifyWebhook(event);
+    }
+
+    if (path === "/webhook" && method === "POST") {
+      const { receiveMessage } = await import(
+        "./controllers/webhook.controller.js"
+      );
+      return await receiveMessage(event);
+    }
+
+    return {
+      statusCode: 404,
+      body: "NOT FOUND",
+    };
+  } catch (err) {
+    console.error("❌ HANDLER ERROR:", err);
+
+    return {
+      statusCode: 500,
+      body: "INTERNAL ERROR",
+    };
   }
-
-  if (path === "/webhook" && method === "GET") {
-    return await verifyWebhook(event);
-  }
-
-  if (path === "/webhook" && method === "POST") {
-    return await receiveMessage(event);
-  }
-
-  return { statusCode: 404, body: "NOT FOUND" };
 };
