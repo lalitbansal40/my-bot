@@ -18,7 +18,6 @@ const SHOP_PHONE = "9664114023";
 
 export const verifyWebhook = async (event: any) => {
   try {
-    console.log("event :: ", JSON.stringify(event))
     const query = event.queryStringParameters || {};
 
     const mode = query["hub.mode"];
@@ -89,19 +88,14 @@ export const recievePayment = async (event: any) => {
   const response = { statusCode: 200, body: "" };
 
   try {
-    console.log("event :: ", JSON.stringify(event))
     const rawBody = event.isBase64Encoded
       ? Buffer.from(event.body || "", "base64").toString("utf8")
       : event.body || "";
 
-    console.log("rawBody :: ", JSON.stringify(rawBody))
 
     if (!rawBody) return response;
 
     const { event: rpEvent, payload } = JSON.parse(rawBody);
-
-    console.log("🔔 Razorpay Event:", rpEvent);
-    console.log("payload :: ", JSON.stringify(payload))
 
     const paymentLink = payload?.payment_link?.entity;
     const payment = payload?.payment?.entity;
@@ -143,7 +137,6 @@ export const recievePayment = async (event: any) => {
       );
 
       const order = await sheet.getByKey("phone", phone, "order details");
-      console.log("order :: ",JSON.stringify(order))
       if (!order) return response;
 
       let borzoOrderId = "";
@@ -177,7 +170,7 @@ export const recievePayment = async (event: any) => {
         };
 
         const borzoResp = await borzoClient.createOrder(borzoPayload);
-         console.log("borzoResp :: ",JSON.stringify(borzoResp))
+
         if (borzoResp?.order?.order_id) {
           borzoOrderId = borzoResp.order.order_id;
 
@@ -187,7 +180,7 @@ export const recievePayment = async (event: any) => {
             {
               delivery_partner: "BORZO",
               delivery_status: "CREATED",
-              borzo_order_id: borzoOrderId,
+              order_id: borzoOrderId,
               updated_at: new Date().toISOString(),
             },
             "order details"
