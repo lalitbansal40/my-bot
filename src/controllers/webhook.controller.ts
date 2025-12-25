@@ -89,15 +89,19 @@ export const recievePayment = async (event: any) => {
   const response = { statusCode: 200, body: "" };
 
   try {
+    console.log("event :: ",JSON.stringify(event))
     const rawBody = event.isBase64Encoded
       ? Buffer.from(event.body || "", "base64").toString("utf8")
       : event.body || "";
+      
+    console.log("rawBody :: ",JSON.stringify(rawBody))
 
     if (!rawBody) return response;
 
     const { event: rpEvent, payload } = JSON.parse(rawBody);
 
     console.log("🔔 Razorpay Event:", rpEvent);
+    console.log("payload :: ",JSON.stringify(payload))
 
     const paymentLink = payload?.payment_link?.entity;
     const payment = payload?.payment?.entity;
