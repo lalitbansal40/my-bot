@@ -1,6 +1,4 @@
 import { google, sheets_v4 } from "googleapis";
-import path from "path";
-import fs from "fs";
 type RowData = Record<string, any>;
 
 export class GoogleSheetService {
@@ -8,18 +6,10 @@ export class GoogleSheetService {
   private spreadsheetId: string;
   private headers: string[] = [];
 
-  constructor(spreadsheetId: string) {
-    // 🔥 EXACT PATH (tumhare build ke according)
-    const keyPath = path.join(__dirname, "google-sheets.json");
-
-
-    // 🔥 JSON DIRECT READ
-    const credentials = JSON.parse(
-      fs.readFileSync(keyPath, "utf8")
-    );
-
-    const auth = new google.auth.GoogleAuth({
-      credentials,
+ constructor(spreadsheetId: string) {
+    const auth = new google.auth.JWT({
+      email: process.env.GOOGLE_CLIENT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
 
