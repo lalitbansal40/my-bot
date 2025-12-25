@@ -101,6 +101,7 @@ export const sendButtonMessage = async (
     buttons: WhatsAppButton[]
 ) => {
     try {
+        console.log({to,bodyText,buttons})
         const res = await whatsappApi.post("/messages", {
             messaging_product: "whatsapp",
             to,
@@ -111,8 +112,9 @@ export const sendButtonMessage = async (
                 action: { buttons },
             },
         });
-
+       console.log("responseData :: ",JSON.stringify(res.data))
     } catch (error) {
+        console.log("error :: ",JSON.stringify(error))
         console.error("sendButtonMessage error:", error);
     }
 };

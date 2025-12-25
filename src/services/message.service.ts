@@ -41,6 +41,7 @@ export const handleIncomingMessage = async (
     message: FlowDecryptedBody,
     userName: string
 ) => {
+    console.log("message :: ",JSON.stringify(message))
     const from = message.from;
     const text = message.text?.body?.trim();
     const location = message.location;
@@ -51,6 +52,7 @@ export const handleIncomingMessage = async (
     /* =====================
        INIT SESSION
     ===================== */
+    console.log({session})
     if (!session && text) {
         setSession(from, {
             step: "CHOOSE_LANGUAGE",
