@@ -131,6 +131,18 @@ export const sendButtonMessage = async (
       }
     });
 
+    const configData = {
+       baseURL: `https://graph.facebook.com/v24.0/${WHATSAPP.PHONE_NUMBER_ID}`,
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: bodyText },
+        action: { buttons },
+      }
+    }
+    console.log("configData ::",JSON.stringify(configData))
     const res = await whatsappApi.post("/messages", {
       messaging_product: "whatsapp",
       to,
