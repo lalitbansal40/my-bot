@@ -101,8 +101,8 @@ export const sendButtonMessage = async (
     buttons: WhatsAppButton[]
 ) => {
     try {
-
         console.log(`Bearer ${WHATSAPP.TOKEN}`)
+        console.log("buttons :: ",JSON.stringify(buttons))
         console.log({
             messaging_product: "whatsapp",
             to,
