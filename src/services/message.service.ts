@@ -125,13 +125,19 @@ export const handleIncomingMessage = async (
         /* ===============================
            SEND WHATSAPP MESSAGE
         =============================== */
-        console.log("flowdata cakedata :: ",JSON.stringify(flowData.cakeData))
+        const selectedCakeIds = flowData.cakeData
+            .split(",")
+            .map((id: any) => id.trim());
+        const selectedCakeTitles = CakeData
+            .filter((item: any) => selectedCakeIds.includes(item.id))
+            .map((item: any) => `• ${item.title}`)
+            .join("\n");
         await sendTextMessage(
             from,
             `🍰 *Order Summary*
 
 📦 *Items:*  
-${CakeData.map((item: any) => item.id === flowData.cakeData)}
+${selectedCakeTitles}
 
 🚚 *Delivery:* ${deliveryCharge}
 💰 *Total Amount:* ${totalAmount}
