@@ -39,7 +39,7 @@ export const receiveMessage = async (event: any) => {
     const rawBody = event.isBase64Encoded
       ? Buffer.from(event.body || "", "base64").toString("utf8")
       : event.body || "";
-
+     console.log("rawbody. ::",JSON.stringify(rawBody))
     if (!rawBody) return response;
 
     const body = JSON.parse(rawBody);
