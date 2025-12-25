@@ -11,6 +11,7 @@ export class GoogleSheetService {
   constructor(spreadsheetId: string) {
        const keyFilePath = path.join(
       __dirname,
+      "services",
       "credentials",
       "google-sheets.json"
     );
