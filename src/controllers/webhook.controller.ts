@@ -43,11 +43,11 @@ export const receiveMessage = async (event: any) => {
     if (!rawBody) return response;
 
     const body = JSON.parse(rawBody);
-
+    console.log("body :: ",JSON.stringify(body));
     const entry = body.entry?.[0];
     const change = entry?.changes?.[0];
     const value = change?.value;
-
+    console.log("value :: ",JSON.stringify(value))
     if (!value?.messages) return response;
 
     const userName =
