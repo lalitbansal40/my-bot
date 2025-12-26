@@ -126,6 +126,18 @@ export const recievePayment = async (event: any) => {
        ✅ PAYMENT SUCCESS
     ================================================= */
     if (rpEvent === "payment_link.paid") {
+
+      // 1️⃣ Fetch order first
+      const order = await sheet.getByKey("phone", phone, "order details");
+      if (!order) return response;
+
+      // 2️⃣ Idempotency check
+      if (order.payment_status === "PAID") {
+        console.log("⚠️ Payment already processed for:", phone);
+        return response; // ⛔ STOP everything here
+      }
+
+      // 3️⃣ Mark payment as PAID
       await sheet.updateByKey(
         "phone",
         phone,
@@ -136,15 +148,12 @@ export const recievePayment = async (event: any) => {
         "order details"
       );
 
-      const order = await sheet.getByKey("phone", phone, "order details");
-      if (!order) return response;
-
       let borzoOrderId = "";
 
       try {
         const borzoClient = new BorzoApiClient(BORZO_API_KEY, false);
 
-        const borzoPayload:any = {
+        const borzoPayload: any = {
           matter: order.item_name,
           payment_method: "balance",
           points: [
@@ -201,6 +210,7 @@ export const recievePayment = async (event: any) => {
         );
       }
 
+      // 4️⃣ Send confirmation to customer
       await sendTextMessage(
         phone,
         `✅ *Payment Successful!*
@@ -218,6 +228,7 @@ export const recievePayment = async (event: any) => {
 Thank you for ordering with us 🎂`
       );
 
+      // 5️⃣ Internal notifications
       const items = order.item_name.split(",").map((i: string) => i.trim());
 
       const cakeMap = cakeData.reduce<Record<string, any>>((acc, cake) => {
@@ -242,6 +253,7 @@ Thank you for ordering with us 🎂`
 
       return response;
     }
+
 
 
     /* =================================================
