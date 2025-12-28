@@ -1,6 +1,8 @@
 import Razorpay from "razorpay";
 import crypto from "crypto";
-
+import dotenv from "dotenv";
+import path from "path";
+dotenv.config({ path: path.join(".env") });
 export class RazorpayService {
   private razorpay: Razorpay;
 

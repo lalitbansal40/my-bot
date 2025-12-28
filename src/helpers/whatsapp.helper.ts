@@ -1,4 +1,7 @@
 import axios from "axios";
+import dotenv from "dotenv";
+import path from "path"
+dotenv.config({ path: path.join(".env") });
 /* =========================
    SESSION MANAGEMENT
 ========================= */
@@ -52,7 +55,6 @@ export const reverseGeocode = async (
         },
       }
     );
-
     return (
       res.data?.results?.[0]?.formatted_address ||
       "Address not found"
@@ -62,3 +64,14 @@ export const reverseGeocode = async (
     return "Address not found";
   }
 };
+
+
+export const interpolate = (
+  template: string,
+  data: Record<string, any> = {}
+) => {
+  return template.replace(/{{(.*?)}}/g, (_, key) => {
+    return data[key.trim()] ?? "";
+  });
+};
+

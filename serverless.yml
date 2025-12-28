@@ -1,0 +1,23 @@
+service: my-bot
+
+frameworkVersion: "4"
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-south-1
+  stage: dev
+  timeout: 30
+
+  deploymentBucket:
+    name: my-bot-serverless-deploy-302767540275
+    blockPublicAccess: true
+
+functions:
+  api:
+    handler: src/index.handler
+    events:
+      - httpApi: "*"
+
+plugins:
+  - serverless-offline

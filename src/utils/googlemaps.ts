@@ -1,5 +1,7 @@
 import { Client, AddressType } from "@googlemaps/google-maps-services-js";
-
+import dotenv from "dotenv";
+import path from "path";
+dotenv.config({ path: path.join(".env") });
 /* -------------------- GOOGLE MAPS SETUP -------------------- */
 const client = new Client({});
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_KEY!;
@@ -56,16 +58,12 @@ export const getStructuredAddress = async (
     const response = await client.geocode({
       params: {
         address: rawAddress,
-        components: {
-          locality: "Jaipur",
-          administrative_area: "Rajasthan",
-        },
         key: GOOGLE_MAPS_API_KEY,
       },
     });
 
     if (!response.data.results.length) {
-      return "No address found in Jaipur.";
+      return "No address found";
     }
 
     const result = response.data.results[0];

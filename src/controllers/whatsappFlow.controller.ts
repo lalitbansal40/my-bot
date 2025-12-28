@@ -1,5 +1,8 @@
 import { decryptRequest, DecryptRequestResult, encryptResponse, FlowEndpointException } from "../utils/encryption";
 import { Request, Response } from "express";
+import dotenv from "dotenv";
+import path from "path";
+dotenv.config({ path: path.join(".env") });
 import vendors from "../utils/vendors";
 const PRIVATE_KEY = `-----BEGIN ENCRYPTED PRIVATE KEY-----
 MIIFJDBWBgkqhkiG9w0BBQ0wSTAxBgkqhkiG9w0BBQwwJAQQ+qf6sAUFg/1rHU5b
@@ -35,53 +38,30 @@ Jjf6S9WfUN7SDVDuzEH1nHABHdlBa1AL
 
 
 
-export const whatsappFlowController = async (event: any) => {
+export const whatsappFlowController = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   try {
-    console.log("eventJson ::", JSON.stringify(event));
+    console.log("req.body ::", JSON.stringify(req.body));
 
-    /* ===============================
-       1️⃣ Extract appName SAFELY
-    =============================== */
-    let appName: string | undefined;
-
-    if (event.pathParameters?.appName) {
-      // API Gateway style
-      appName = event.pathParameters.appName;
-    } else if (event.rawPath) {
-      // Lambda Function URL style
-      // /whatsappflow/cake-arena
-      const parts = event.rawPath.split("/").filter(Boolean);
-      appName = parts[1]; // index 0 = whatsappflow, 1 = appName
-    }
+    const appName = req.params.appName;
 
     if (!appName) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "appName not found in path" }),
-      };
+      return res.status(400).json({
+        error: "appName not found in path",
+      });
     }
 
-    /* ===============================
-       2️⃣ Validate private key
-    =============================== */
     if (!PRIVATE_KEY) {
       throw new Error(
         'Private key is empty. Please check env variable "PRIVATE_KEY".'
       );
     }
 
+    const body = req.body;
 
-    /* ===============================
-       3️⃣ Parse body
-    =============================== */
-    const body =
-      typeof event.body === "string"
-        ? JSON.parse(event.body)
-        : event.body;
 
-    /* ===============================
-       4️⃣ Decrypt request
-    =============================== */
     let decryptedRequest;
 
     try {
@@ -92,31 +72,28 @@ export const whatsappFlowController = async (event: any) => {
       );
     } catch (err: any) {
       if (err instanceof FlowEndpointException) {
-        return { statusCode: err.statusCode, body: "" };
+        // ⚠️ WhatsApp Flow expects empty body on error
+        return res.sendStatus(err.statusCode);
       }
-      return { statusCode: 500, body: "" };
+      return res.sendStatus(500);
     }
 
-    const { aesKeyBuffer, initialVectorBuffer, decryptedBody } =
-      decryptedRequest;
+    const {
+      aesKeyBuffer,
+      initialVectorBuffer,
+      decryptedBody,
+    } = decryptedRequest;
 
     console.log("💬 Decrypted Request:", decryptedBody);
 
-    /* ===============================
-       5️⃣ Resolve vendor
-    =============================== */
     const VendorFlowClass = vendors[appName]?.flowAppClass;
 
     if (!VendorFlowClass) {
-      return {
-        statusCode: 400,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          errors: {
-            message: `Invalid appName "${appName}". No flow app registered.`,
-          },
-        }),
-      };
+      return res.status(400).json({
+        errors: {
+          message: `Invalid appName "${appName}". No flow app registered.`,
+        },
+      });
     }
 
     const flowAppObj = new VendorFlowClass();
@@ -126,30 +103,26 @@ export const whatsappFlowController = async (event: any) => {
       appName
     );
 
-    /* ===============================
-       6️⃣ Encrypt response
-    =============================== */
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/octet-stream" },
-      body: encryptResponse(
-        screenResponse,
-        aesKeyBuffer,
-        initialVectorBuffer
-      ),
-    };
+
+    return res
+      .status(200)
+      .set("Content-Type", "application/octet-stream")
+      .send(
+        encryptResponse(
+          screenResponse,
+          aesKeyBuffer,
+          initialVectorBuffer
+        )
+      );
   } catch (error) {
     console.error("Flow controller error:", error);
 
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        errors: {
-          message:
-            "Unhandled endpoint request. Make sure you handle the request action & screen logged above.",
-        },
-      }),
-    };
+    return res.status(500).json({
+      errors: {
+        message:
+          "Unhandled endpoint request. Make sure you handle the request action & screen logged above.",
+      },
+    });
   }
 };
+

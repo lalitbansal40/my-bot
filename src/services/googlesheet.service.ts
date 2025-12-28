@@ -1,6 +1,8 @@
 import { google, sheets_v4 } from "googleapis";
 type RowData = Record<string, any>;
-
+import dotenv from "dotenv";
+import path from "path";
+dotenv.config({ path: path.join(".env") });
 export class GoogleSheetService {
   private sheets: sheets_v4.Sheets;
   private spreadsheetId: string;
