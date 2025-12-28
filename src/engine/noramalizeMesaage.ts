@@ -10,6 +10,10 @@ export const normalizeMessage = (
         latitude: number;
         longitude: number;
     };
+    text?: {
+        body: string;
+    };
+
 } => {
     let interactive: WhatsAppInteractive | undefined;
 

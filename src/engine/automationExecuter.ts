@@ -60,11 +60,12 @@ export const runAutomation = async ({
   updateSession,
 }: RunAutomationParams) => {
   const text = message.text?.body?.toLowerCase();
+  const normalizedMessage = normalizeMessage(message);
 
   const RESET_KEYWORDS = ["restart"];
 
   /* ===============================
-     0️⃣ RESET HANDLING
+     0️⃣ RESET HANDLING (STOP FLOW)
   =============================== */
   if (text && RESET_KEYWORDS.includes(text)) {
     console.log("🔁 Resetting automation session");
@@ -74,23 +75,25 @@ export const runAutomation = async ({
       waiting_for: null,
       data: {},
     });
+
+    return; // ⛔ VERY IMPORTANT
   }
 
   /* ===============================
      1️⃣ BUTTON HANDLING (TOP PRIORITY)
   =============================== */
-  if (
-    session.waiting_for === "button" &&
-    message.interactive?.button_reply?.id
-  ) {
-    const buttonId = message.interactive.button_reply.id;
+  if (session.waiting_for === "button") {
+    if (!normalizedMessage.interactive?.button_reply?.id) {
+      return; // ⛔ ignore text/location while waiting for button
+    }
+
+    const buttonId = normalizedMessage.interactive.button_reply.id;
 
     const nextNodeId = getNextNodeByCondition(
       automation.edges,
       session.current_node,
       buttonId
     );
-
     if (!nextNodeId) return;
 
     await updateSession({
@@ -100,7 +103,6 @@ export const runAutomation = async ({
 
     const nextNode = automation.nodes.find(n => n.id === nextNodeId);
     if (!nextNode) return;
-    const normalizedMessage = normalizeMessage(message);
 
     return executeNode({
       node: nextNode,
@@ -113,30 +115,45 @@ export const runAutomation = async ({
   }
 
   /* ===============================
-     2️⃣ LOCATION HANDLING
+     2️⃣ LOCATION / TYPED ADDRESS HANDLING
   =============================== */
-  if (session.waiting_for === "location" && message.location) {
-    const currentNode = automation.nodes.find(
-      n => n.id === session.current_node
-    );
+  if (session.waiting_for === "location") {
+    // ❌ ignore buttons & flows
+    if (
+      normalizedMessage.interactive?.button_reply ||
+      normalizedMessage.interactive?.nfm_reply
+    ) {
+      return;
+    }
 
-    if (!currentNode) return;
-    const normalizedMessage = normalizeMessage(message);
+    // ✅ allow location OR typed address
+    if (
+      normalizedMessage.location ||
+      normalizedMessage.text?.body
+    ) {
+      const currentNode = automation.nodes.find(
+        n => n.id === session.current_node
+      );
+      if (!currentNode) return;
 
-    return executeNode({
-      node: currentNode,
-      automation,
-      session,
-      message: normalizedMessage,
-      whatsapp,
-      updateSession,
-    });
+      return executeNode({
+        node: currentNode,
+        automation,
+        session,
+        message: normalizedMessage,
+        whatsapp,
+        updateSession,
+      });
+    }
+
+    return;
   }
+
 
   /* ===============================
      3️⃣ TRIGGER (ONLY ON START)
   =============================== */
-  if (session.current_node === "start") {
+  if (session.current_node === "start" && !session.waiting_for) {
     const triggerNode = automation.nodes.find(n => n.type === "trigger");
     if (!triggerNode) return;
 
@@ -150,7 +167,6 @@ export const runAutomation = async ({
 
     const nextNode = automation.nodes.find(n => n.id === nextNodeId);
     if (!nextNode) return;
-    const normalizedMessage = normalizeMessage(message);
 
     return executeNode({
       node: nextNode,
@@ -166,8 +182,11 @@ export const runAutomation = async ({
      4️⃣ NORMAL NODE EXECUTION
   =============================== */
   const node = automation.nodes.find(n => n.id === session.current_node);
-  if (!node) return;
-  const normalizedMessage = normalizeMessage(message);
+  if (!node) {
+    console.warn("⚠️ Invalid current_node:", session.current_node);
+    return;
+  }
+
   return executeNode({
     node,
     automation,
@@ -177,5 +196,6 @@ export const runAutomation = async ({
     updateSession,
   });
 };
+
 
 

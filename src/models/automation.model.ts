@@ -10,7 +10,8 @@ export type AutomationNodeType =
   | "ask_location"
   | "ask_user_input"
   | "send_flow"
-  | "send_utility_template";
+  | "send_utility_template"
+  | "distance_check";
 
 /* ---------- NODE ---------- */
 export interface AutomationNode {
@@ -46,7 +47,9 @@ export interface AutomationNode {
   language?: string;
   parameters?: string[];
   keywords?: string[];
-
+  reference_lat?: number;
+  reference_lng?: number;
+  max_distance_km?: number;
 
 }
 
@@ -74,7 +77,7 @@ export interface AutomationDocument extends Document {
 
   createdAt: Date;
   updatedAt: Date;
-  keywords:string[]
+  keywords: string[]
 }
 
 /* =========================
@@ -126,6 +129,10 @@ const AutomationNodeSchema = new Schema<AutomationNode>(
     template_name: { type: String },
     language: { type: String, default: "en" },
     parameters: [{ type: String }],
+    reference_lat: { type: Number },
+    reference_lng: { type: Number },
+    max_distance_km: { type: Number },
+
   },
   { _id: false }
 );
@@ -196,20 +203,12 @@ const AutomationSchema = new Schema<AutomationDocument>(
   }
 );
 
-/* =========================
-   INDEXES
-========================= */
-
 // Fast lookup for active automation per channel
 AutomationSchema.index({
   channel_id: 1,
   trigger: 1,
   status: 1,
 });
-
-/* =========================
-   MODEL EXPORT
-========================= */
 
 const Automation =
   mongoose.models.Automation ||

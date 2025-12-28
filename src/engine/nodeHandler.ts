@@ -8,8 +8,9 @@ import { WhatsAppClient } from "../services/whatsapp.client";
 import { getNextNodeId } from "./grapht";
 import { WhatsAppInteractive } from "../types/whatsapp";
 import { interpolate, reverseGeocode } from "../helpers/whatsapp.helper";
-import { getStructuredAddress } from "../utils/googlemaps";
+import { calculateDistance, getStructuredAddress } from "../utils/googlemaps";
 import { IncomingMessage } from "./automationExecuter";
+import { getNextNodeByCondition } from "../utils/automation";
 
 /* =========================
    CONTEXT TYPE
@@ -79,32 +80,21 @@ export const executeNode = async ({
       const saveKey = node.save_to || "location";
       let structuredAddress: any = null;
 
-      /* =========================
-         1️⃣ LOCATION BUTTON
-      ========================= */
+      // 1️⃣ live location
       if (message.location) {
         const addressText = await reverseGeocode(
           message.location.latitude,
           message.location.longitude
         );
-
         structuredAddress = await getStructuredAddress(addressText);
       }
 
-      /* =========================
-         2️⃣ TYPED ADDRESS (ONLY REAL TEXT)
-      ========================= */
-      else if (
-        message.text?.body &&
-        !message.interactive?.button_reply &&
-        !message.interactive?.nfm_reply
-      ) {
+      // 2️⃣ typed address
+      else if (message.text?.body) {
         structuredAddress = await getStructuredAddress(message.text.body);
       }
 
-      /* =========================
-         3️⃣ ASK AGAIN (NO INPUT YET)
-      ========================= */
+      // 3️⃣ nothing received yet → ASK USER
       else {
         await whatsapp.requestLocation(from, node.message!);
         await updateSession({
@@ -114,9 +104,7 @@ export const executeNode = async ({
         return;
       }
 
-      /* =========================
-         4️⃣ INVALID ADDRESS
-      ========================= */
+      // 4️⃣ invalid
       if (!structuredAddress || typeof structuredAddress === "string") {
         await whatsapp.sendText(
           from,
@@ -132,9 +120,7 @@ export const executeNode = async ({
         return;
       }
 
-      /* =========================
-         5️⃣ SAVE TO CONTACT
-      ========================= */
+      // 5️⃣ save contact
       await Contact.updateOne(
         { phone: from, channel_id: automation.channel_id },
         {
@@ -150,18 +136,19 @@ export const executeNode = async ({
         { upsert: true }
       );
 
-      /* =========================
-         6️⃣ SAVE TO SESSION (for {{address}})
-      ========================= */
+      // 6️⃣ save session
       await updateSession({
         data: {
+          ...session.data,
           address: structuredAddress.fullAddress,
+          addressData: {
+            latitude: structuredAddress.latitude,
+            longitude: structuredAddress.longitude,
+          },
         },
       });
 
-      /* =========================
-         7️⃣ MOVE TO CONFIRM NODE
-      ========================= */
+      // 7️⃣ move to confirm
       const nextNodeId = getNextNodeId(automation.edges, node.id);
       if (!nextNodeId) return;
 
@@ -179,6 +166,7 @@ export const executeNode = async ({
         updateSession,
       });
     }
+
 
     case "send_flow": {
       /**
@@ -255,6 +243,50 @@ export const executeNode = async ({
       return;
     }
 
+    case "distance_check": {
+      const address = session.data?.addressData;
+      console.log({ session })
+      if (!address?.latitude || !address?.longitude) {
+        console.warn("❌ No address found for distance check");
+        return;
+      }
+
+      const distance = calculateDistance(
+        node.reference_lat!,
+        node.reference_lng!,
+        address.latitude,
+        address.longitude
+      );
+
+      const condition = distance <= node.max_distance_km!
+        ? "IN_RANGE"
+        : "OUT_OF_RANGE";
+
+      // optional: save distance
+      await updateSession({
+        data: {
+          ...session.data,
+          distance_km: distance.toFixed(2),
+        },
+      });
+
+      const nextNodeId = getNextNodeByCondition(
+        automation.edges,
+        node.id,
+        condition
+      );
+
+      if (!nextNodeId) return;
+
+      return executeNode({
+        node: automation.nodes.find(n => n.id === nextNodeId)!,
+        automation,
+        session,
+        message,
+        whatsapp,
+        updateSession,
+      });
+    }
 
     default:
       console.warn("⚠️ Unsupported node type:", node.type);
