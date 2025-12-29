@@ -111,7 +111,7 @@
               "Properties": {
                 "Code": {
                   "S3Bucket": "my-bot-serverless-deploy-302767540275",
-                  "S3Key": "serverless/my-bot/dev/1766915016474-2025-12-28T09:43:36.474Z/my-bot.zip"
+                  "S3Key": "serverless/my-bot/dev/1766951646904-2025-12-28T19:54:06.904Z/my-bot.zip"
                 },
                 "Handler": "src/index.handler",
                 "Runtime": "nodejs18.x",
@@ -134,14 +134,14 @@
                 "ApiLogGroup"
               ]
             },
-            "ApiLambdaVersionQYOqd7xgPt1ZCgosSDZ6KkoMMe02bh2ZCNTRrgzY0": {
+            "ApiLambdaVersiondE5UVBxBsqKAmpKumUi6cWv9Sx40w0V2JrGxJS55TY": {
               "Type": "AWS::Lambda::Version",
               "DeletionPolicy": "Retain",
               "Properties": {
                 "FunctionName": {
                   "Ref": "ApiLambdaFunction"
                 },
-                "CodeSha256": "Wd5hmNe8LuYnxQEZra0kRnJFx2Nj0cTlr+vYSwmGjLM="
+                "CodeSha256": "i5RCP5bLsPo/fpuIMcunra96jdTvtOWzcLuHIdIfhag="
               }
             },
             "HttpApi": {
@@ -250,7 +250,7 @@
             "ApiLambdaFunctionQualifiedArn": {
               "Description": "Current Lambda function version",
               "Value": {
-                "Ref": "ApiLambdaVersionQYOqd7xgPt1ZCgosSDZ6KkoMMe02bh2ZCNTRrgzY0"
+                "Ref": "ApiLambdaVersiondE5UVBxBsqKAmpKumUi6cWv9Sx40w0V2JrGxJS55TY"
               },
               "Export": {
                 "Name": "sls-my-bot-dev-ApiLambdaFunctionQualifiedArn"
@@ -312,7 +312,7 @@
           "timeout": 30,
           "runtime": "nodejs18.x",
           "vpc": {},
-          "versionLogicalId": "ApiLambdaVersionQYOqd7xgPt1ZCgosSDZ6KkoMMe02bh2ZCNTRrgzY0"
+          "versionLogicalId": "ApiLambdaVersiondE5UVBxBsqKAmpKumUi6cWv9Sx40w0V2JrGxJS55TY"
         }
       },
       "plugins": [
@@ -424,7 +424,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "my-bot-serverless-deploy-302767540275",
-                "S3Key": "serverless/my-bot/dev/1766915016474-2025-12-28T09:43:36.474Z/my-bot.zip"
+                "S3Key": "serverless/my-bot/dev/1766951646904-2025-12-28T19:54:06.904Z/my-bot.zip"
               },
               "Handler": "src/index.handler",
               "Runtime": "nodejs18.x",
@@ -447,14 +447,14 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersionQYOqd7xgPt1ZCgosSDZ6KkoMMe02bh2ZCNTRrgzY0": {
+          "ApiLambdaVersiondE5UVBxBsqKAmpKumUi6cWv9Sx40w0V2JrGxJS55TY": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "Wd5hmNe8LuYnxQEZra0kRnJFx2Nj0cTlr+vYSwmGjLM="
+              "CodeSha256": "i5RCP5bLsPo/fpuIMcunra96jdTvtOWzcLuHIdIfhag="
             }
           },
           "HttpApi": {
@@ -563,7 +563,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersionQYOqd7xgPt1ZCgosSDZ6KkoMMe02bh2ZCNTRrgzY0"
+              "Ref": "ApiLambdaVersiondE5UVBxBsqKAmpKumUi6cWv9Sx40w0V2JrGxJS55TY"
             },
             "Export": {
               "Name": "sls-my-bot-dev-ApiLambdaFunctionQualifiedArn"
@@ -629,12 +629,12 @@
     "serviceProviderAwsCfStackName": "my-bot-dev",
     "serviceProviderAwsCfStackId": "arn:aws:cloudformation:ap-south-1:302767540275:stack/my-bot-dev/38a1cbe0-e303-11f0-92f5-0ae737089e1b",
     "serviceProviderAwsCfStackCreated": "2025-12-27T09:05:42.966Z",
-    "serviceProviderAwsCfStackUpdated": null,
-    "serviceProviderAwsCfStackStatus": "CREATE_COMPLETE",
+    "serviceProviderAwsCfStackUpdated": "2025-12-28T09:43:41.652Z",
+    "serviceProviderAwsCfStackStatus": "UPDATE_COMPLETE",
     "serviceProviderAwsCfStackOutputs": [
       {
         "OutputKey": "ApiLambdaFunctionQualifiedArn",
-        "OutputValue": "arn:aws:lambda:ap-south-1:302767540275:function:my-bot-dev-api:1",
+        "OutputValue": "arn:aws:lambda:ap-south-1:302767540275:function:my-bot-dev-api:2",
         "Description": "Current Lambda function version",
         "ExportName": "sls-my-bot-dev-ApiLambdaFunctionQualifiedArn"
       },
@@ -749,7 +749,7 @@
           "Properties": {
             "Code": {
               "S3Bucket": "my-bot-serverless-deploy-302767540275",
-              "S3Key": "serverless/my-bot/dev/1766915016474-2025-12-28T09:43:36.474Z/my-bot.zip"
+              "S3Key": "serverless/my-bot/dev/1766951646904-2025-12-28T19:54:06.904Z/my-bot.zip"
             },
             "Handler": "src/index.handler",
             "Runtime": "nodejs18.x",
@@ -772,14 +772,14 @@
             "ApiLogGroup"
           ]
         },
-        "ApiLambdaVersionQYOqd7xgPt1ZCgosSDZ6KkoMMe02bh2ZCNTRrgzY0": {
+        "ApiLambdaVersiondE5UVBxBsqKAmpKumUi6cWv9Sx40w0V2JrGxJS55TY": {
           "Type": "AWS::Lambda::Version",
           "DeletionPolicy": "Retain",
           "Properties": {
             "FunctionName": {
               "Ref": "ApiLambdaFunction"
             },
-            "CodeSha256": "Wd5hmNe8LuYnxQEZra0kRnJFx2Nj0cTlr+vYSwmGjLM="
+            "CodeSha256": "i5RCP5bLsPo/fpuIMcunra96jdTvtOWzcLuHIdIfhag="
           }
         },
         "HttpApi": {
@@ -888,7 +888,7 @@
         "ApiLambdaFunctionQualifiedArn": {
           "Description": "Current Lambda function version",
           "Value": {
-            "Ref": "ApiLambdaVersionQYOqd7xgPt1ZCgosSDZ6KkoMMe02bh2ZCNTRrgzY0"
+            "Ref": "ApiLambdaVersiondE5UVBxBsqKAmpKumUi6cWv9Sx40w0V2JrGxJS55TY"
           },
           "Export": {
             "Name": "sls-my-bot-dev-ApiLambdaFunctionQualifiedArn"
