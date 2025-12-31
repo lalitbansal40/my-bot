@@ -59,34 +59,30 @@ export const runAutomation = async ({
   whatsapp,
   updateSession,
 }: RunAutomationParams) => {
-  const text = message.text?.body?.toLowerCase();
   const normalizedMessage = normalizeMessage(message);
+  const text = normalizedMessage.text?.body?.toLowerCase();
 
   const RESET_KEYWORDS = ["restart"];
 
   /* ===============================
-     0️⃣ RESET HANDLING (STOP FLOW)
+     0️⃣ RESET (STOP EVERYTHING)
   =============================== */
   if (text && RESET_KEYWORDS.includes(text)) {
-    console.log("🔁 Resetting automation session");
-
     await updateSession({
       current_node: "start",
       waiting_for: null,
       data: {},
     });
-
-    return; // ⛔ VERY IMPORTANT
+    return;
   }
 
   /* ===============================
-     1️⃣ BUTTON HANDLING (TOP PRIORITY)
+     1️⃣ BUTTON HANDLING
   =============================== */
-  if (session.waiting_for === "button") {
-    if (!normalizedMessage.interactive?.button_reply?.id) {
-      return; // ⛔ ignore text/location while waiting for button
-    }
-
+  if (
+    session.waiting_for === "button" &&
+    normalizedMessage.interactive?.button_reply?.id
+  ) {
     const buttonId = normalizedMessage.interactive.button_reply.id;
 
     const nextNodeId = getNextNodeByCondition(
@@ -115,45 +111,39 @@ export const runAutomation = async ({
   }
 
   /* ===============================
-     2️⃣ LOCATION / TYPED ADDRESS HANDLING
+     2️⃣ LOCATION / TYPED ADDRESS
+     🔥 THIS FIXES YOUR ISSUE
   =============================== */
-  if (session.waiting_for === "location") {
-    // ❌ ignore buttons & flows
-    if (
-      normalizedMessage.interactive?.button_reply ||
-      normalizedMessage.interactive?.nfm_reply
-    ) {
-      return;
-    }
-
-    // ✅ allow location OR typed address
-    if (
+  if (
+    session.waiting_for === "location" &&
+    (
       normalizedMessage.location ||
-      normalizedMessage.text?.body
-    ) {
-      const currentNode = automation.nodes.find(
-        n => n.id === session.current_node
-      );
-      if (!currentNode) return;
+      (
+        normalizedMessage.text?.body &&
+        !normalizedMessage.interactive?.button_reply &&
+        !normalizedMessage.interactive?.nfm_reply
+      )
+    )
+  ) {
+    const currentNode = automation.nodes.find(
+      n => n.id === session.current_node
+    );
+    if (!currentNode) return;
 
-      return executeNode({
-        node: currentNode,
-        automation,
-        session,
-        message: normalizedMessage,
-        whatsapp,
-        updateSession,
-      });
-    }
-
-    return;
+    return executeNode({
+      node: currentNode,
+      automation,
+      session,
+      message: normalizedMessage,
+      whatsapp,
+      updateSession,
+    });
   }
 
-
   /* ===============================
-     3️⃣ TRIGGER (ONLY ON START)
+     3️⃣ TRIGGER
   =============================== */
-  if (session.current_node === "start" && !session.waiting_for) {
+  if (session.current_node === "start") {
     const triggerNode = automation.nodes.find(n => n.type === "trigger");
     if (!triggerNode) return;
 
@@ -179,13 +169,10 @@ export const runAutomation = async ({
   }
 
   /* ===============================
-     4️⃣ NORMAL NODE EXECUTION
+     4️⃣ NORMAL EXECUTION
   =============================== */
   const node = automation.nodes.find(n => n.id === session.current_node);
-  if (!node) {
-    console.warn("⚠️ Invalid current_node:", session.current_node);
-    return;
-  }
+  if (!node) return;
 
   return executeNode({
     node,
@@ -196,6 +183,7 @@ export const runAutomation = async ({
     updateSession,
   });
 };
+
 
 
 

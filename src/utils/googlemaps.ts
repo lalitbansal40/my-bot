@@ -27,6 +27,7 @@ export interface StructuredAddress {
   distanceFromReferenceKm: number;
   latitude: number;
   longitude: number;
+  googleMapsUrl?: string; 
 }
 
 /* -------------------- DISTANCE CALCULATION -------------------- */
@@ -90,6 +91,8 @@ export const getStructuredAddress = async (
       components.find(c => types.some(t => c.types.includes(t)))?.long_name ||
       "";
 
+    const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+
     /* -------- Final Structured Address -------- */
     return {
       houseNo: getComponent([
@@ -111,6 +114,7 @@ export const getStructuredAddress = async (
       distanceFromReferenceKm: +distance.toFixed(2),
       latitude: lat,
       longitude: lng,
+      googleMapsUrl:googleMapsUrl
     };
   } catch (error) {
     console.error("❌ Error fetching address:", error);

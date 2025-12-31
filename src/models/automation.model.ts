@@ -27,6 +27,7 @@ export interface AutomationNode {
 
   // buttons (auto_reply)
   buttons?: {
+    type: string;
     id: string;
     title: string;
   }[];

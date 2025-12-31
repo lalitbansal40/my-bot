@@ -57,12 +57,22 @@ export const executeNode = async ({
   =============================== */
   switch (node.type) {
     case "auto_reply": {
-      const rawText = node.message || "";
+      let text = node.message || "";
 
-      // ✅ replace all {{variables}}
-      const text = interpolate(rawText, session.data);
+      // ✅ interpolate variables first
+      text = interpolate(text, session.data);
+
+      // ✅ append Google Maps link (if available)
+      const mapUrl = session.data?.addressData?.googleMapsUrl;
+      if (mapUrl) {
+        text += `\n\n🗺️ *View on Google Maps:*\n${mapUrl}`;
+      }
 
       if (node.buttons?.length) {
+
+        // 🔒 prevent duplicate button send
+        if (session.waiting_for === "button") return;
+
         await whatsapp.sendButtons(from, text, node.buttons);
 
         await updateSession({
@@ -80,7 +90,9 @@ export const executeNode = async ({
       const saveKey = node.save_to || "location";
       let structuredAddress: any = null;
 
-      // 1️⃣ live location
+      /* =========================
+         1️⃣ LOCATION BUTTON
+      ========================= */
       if (message.location) {
         const addressText = await reverseGeocode(
           message.location.latitude,
@@ -89,29 +101,22 @@ export const executeNode = async ({
         structuredAddress = await getStructuredAddress(addressText);
       }
 
-      // 2️⃣ typed address
-      else if (message.text?.body) {
+      /* =========================
+         2️⃣ TYPED ADDRESS
+      ========================= */
+      else if (
+        message.text?.body &&
+        !message.interactive?.button_reply &&
+        !message.interactive?.nfm_reply
+      ) {
         structuredAddress = await getStructuredAddress(message.text.body);
       }
 
-      // 3️⃣ nothing received yet → ASK USER
-      else {
+      /* =========================
+         3️⃣ NO INPUT YET → ASK
+      ========================= */
+      if (!structuredAddress) {
         await whatsapp.requestLocation(from, node.message!);
-        await updateSession({
-          current_node: node.id,
-          waiting_for: "location",
-        });
-        return;
-      }
-
-      // 4️⃣ invalid
-      if (!structuredAddress || typeof structuredAddress === "string") {
-        await whatsapp.sendText(
-          from,
-          typeof structuredAddress === "string"
-            ? structuredAddress
-            : "❌ Address not found. Please try again."
-        );
 
         await updateSession({
           current_node: node.id,
@@ -120,7 +125,22 @@ export const executeNode = async ({
         return;
       }
 
-      // 5️⃣ save contact
+      /* =========================
+         4️⃣ INVALID ADDRESS
+      ========================= */
+      if (typeof structuredAddress === "string") {
+        await whatsapp.sendText(from, structuredAddress);
+
+        await updateSession({
+          current_node: node.id,
+          waiting_for: "location",
+        });
+        return;
+      }
+
+      /* =========================
+         5️⃣ SAVE TO CONTACT
+      ========================= */
       await Contact.updateOne(
         { phone: from, channel_id: automation.channel_id },
         {
@@ -130,13 +150,16 @@ export const executeNode = async ({
               latitude: structuredAddress.latitude,
               longitude: structuredAddress.longitude,
               structured: structuredAddress,
+              googleMapsUrl: structuredAddress.googleMapsUrl
             },
           },
         },
         { upsert: true }
       );
 
-      // 6️⃣ save session
+      /* =========================
+         6️⃣ SAVE TO SESSION (for {{address}})
+      ========================= */
       await updateSession({
         data: {
           ...session.data,
@@ -144,17 +167,21 @@ export const executeNode = async ({
           addressData: {
             latitude: structuredAddress.latitude,
             longitude: structuredAddress.longitude,
+            googleMapsUrl: structuredAddress.googleMapsUrl
           },
         },
       });
 
-      // 7️⃣ move to confirm
+      /* =========================
+         7️⃣ MOVE TO CONFIRM NODE
+         ❗ DO NOT SET waiting_for HERE
+      ========================= */
       const nextNodeId = getNextNodeId(automation.edges, node.id);
       if (!nextNodeId) return;
 
       await updateSession({
         current_node: nextNodeId,
-        waiting_for: "button",
+        waiting_for: null, // 🔥 THIS IS THE FIX
       });
 
       return executeNode({
@@ -166,6 +193,8 @@ export const executeNode = async ({
         updateSession,
       });
     }
+
+
 
 
     case "send_flow": {
