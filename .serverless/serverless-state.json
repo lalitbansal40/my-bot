@@ -109,7 +109,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "my-bot-serverless-deploy-302767540275",
-                "S3Key": "serverless/my-bot/dev/1767156467132-2025-12-31T04:47:47.132Z/my-bot.zip"
+                "S3Key": "serverless/my-bot/dev/1767158072358-2025-12-31T05:14:32.358Z/my-bot.zip"
               },
               "Handler": "src/index.handler",
               "Runtime": "nodejs18.x",
@@ -132,14 +132,14 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersiongfafo0XFYIJEDLd2SVP4fnw8KmsTXmYh7180GD3R7qE": {
+          "ApiLambdaVersionudTLBGRUJPtUz7ed0mhXR92jG9i0eXxAqVGFIun50": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "r37fGlkAGmmwRxd42sxH6aq5Mo7SWnILGQizXrDsB4I="
+              "CodeSha256": "Czectv9e52pVUb9XhsKsQfBam8XrBQ1cuxgbYWZy7W0="
             }
           },
           "HttpApi": {
@@ -245,7 +245,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersiongfafo0XFYIJEDLd2SVP4fnw8KmsTXmYh7180GD3R7qE"
+              "Ref": "ApiLambdaVersionudTLBGRUJPtUz7ed0mhXR92jG9i0eXxAqVGFIun50"
             },
             "Export": {
               "Name": "sls-my-bot-dev-ApiLambdaFunctionQualifiedArn"
@@ -311,7 +311,7 @@
         "timeout": 30,
         "runtime": "nodejs18.x",
         "vpc": {},
-        "versionLogicalId": "ApiLambdaVersiongfafo0XFYIJEDLd2SVP4fnw8KmsTXmYh7180GD3R7qE"
+        "versionLogicalId": "ApiLambdaVersionudTLBGRUJPtUz7ed0mhXR92jG9i0eXxAqVGFIun50"
       }
     },
     "configValidationMode": "warn",
@@ -334,7 +334,7 @@
     "layers": {}
   },
   "package": {
-    "artifactDirectoryName": "serverless/my-bot/dev/1767156467132-2025-12-31T04:47:47.132Z",
+    "artifactDirectoryName": "serverless/my-bot/dev/1767158072358-2025-12-31T05:14:32.358Z",
     "artifact": "my-bot.zip"
   }
 }
