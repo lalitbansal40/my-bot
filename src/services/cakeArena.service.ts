@@ -98,7 +98,6 @@ class CakeArena {
         try {
             const phone = data?.phone_number;
             const selectedCakeIds: string[] = data?.selected_cake || [];
-
             if (!phone || !selectedCakeIds.length) {
                 throw new Error("Invalid input");
             }
@@ -119,28 +118,13 @@ class CakeArena {
 
             const itemsTotal = this.calculateTotal(items);
 
-            const customer = await this.googleSheet.getByKey(
-                "phone",
-                phone,
-                "order details"
-            );
 
-            if (!customer?.latitude || !customer?.longitude) {
-                throw new Error("Customer location missing");
-            }
-
-            const deliveryPrice = await this.calculateDeliveryPrice(
-                phone,
-                customer
-            );
-
-            const grandTotal = itemsTotal + deliveryPrice;
+            const grandTotal = itemsTotal;
 
             return this.buildBillSummaryResponse({
                 phone,
                 items,
                 itemsTotal,
-                deliveryPrice,
                 grandTotal,
                 selectedCakeIds,
             });
@@ -204,7 +188,6 @@ class CakeArena {
         phone,
         items,
         itemsTotal,
-        deliveryPrice,
         grandTotal,
         selectedCakeIds,
     }: any) {
@@ -219,7 +202,6 @@ class CakeArena {
                 cakeData: selectedCakeIds.join(", "),
                 items_text: itemsText,
                 items_total: itemsTotal,
-                delivery_price: deliveryPrice,
                 total_amount: grandTotal,
                 message: `
 🍰 YOUR ORDER
@@ -229,13 +211,6 @@ ${itemsText}
 ━━━━━━━━━━━━━━━
 🛍 ITEMS TOTAL
 ₹${itemsTotal}
-
-🚚 DELIVERY CHARGES
-₹${deliveryPrice}
-
-━━━━━━━━━━━━━━━
-💰 TOTAL PAYABLE
-₹${grandTotal}
 `.trim()
             },
         };
@@ -266,8 +241,15 @@ ${itemsText}
 
     private acknowledgeClientError(data: any) {
         console.warn("Client error:", data);
-        return { data: { acknowledged: true } };
+
+        return {
+            screen: "CAKE_SELECTION", // ✅ existing screen
+            data: {
+                error_message: data.error_message || "Something went wrong. Please try again.",
+            },
+        };
     }
+
 }
 
 export default CakeArena;

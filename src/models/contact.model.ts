@@ -4,6 +4,8 @@ export interface ContactDocument extends Document {
   phone: string;
   name?: string;
   channel_id: mongoose.Types.ObjectId;
+  last_message_id: mongoose.Types.ObjectId;
+
 
   last_message?: string;
   last_message_at?: Date;
@@ -23,6 +25,11 @@ const ContactSchema = new Schema<ContactDocument>(
       type: Schema.Types.ObjectId,
       ref: "Channel",
       required: true,
+      index: true,
+    },
+    last_message_id: {
+      type: Schema.Types.ObjectId,
+      ref: "Message",
       index: true,
     },
 

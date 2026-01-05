@@ -4,6 +4,9 @@ import dotenv from "dotenv";
 import serverless from "serverless-http";
 
 import webhookRoutes from "./routes/webhook.route";
+import channelRoutes from "./routes/channel.routes";
+import authRoutes from "./routes/auth.routes";
+import integrationRoutes from "./routes/integration.routes";
 import whatsappFlowRoutes from "./routes/whatsappFlow.route";
 import { connectMongo } from "./database/mongodb"; // ✅ CHANGE: Mongo connect
 
@@ -55,6 +58,9 @@ app.use(async (_req, res, next) => {
    🔹 ROUTES
 ========================= */
 app.use("/webhook", webhookRoutes);
+app.use("/channel", channelRoutes);
+app.use("/auth", authRoutes);
+app.use("/integrations", integrationRoutes);
 app.use("/whatsappflow", whatsappFlowRoutes);
 
 /* =========================

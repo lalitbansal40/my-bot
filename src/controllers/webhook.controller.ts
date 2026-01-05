@@ -7,6 +7,7 @@ import AutomationSession from "../models/automationSession.model";
 import { createWhatsAppClient } from "../services/whatsapp.client";
 import { runAutomation } from "../engine/automationExecuter";
 import Contact from "../models/contact.model";
+import Message from "../models/message.model";
 dotenv.config({ path: path.join(".env") });
 
 const SHEET_ID = "1xlAP136l66VtTjoMkdTEueo-FXKD7_L1RJUlaxefXzI";
@@ -89,8 +90,6 @@ export const receiveMessage = async (req: Request, res: Response) => {
       {
         $set: {
           name: value.contacts?.[0]?.profile?.name,
-          last_message: text || "interactive/location",
-          last_message_at: new Date(),
         },
       },
       {
@@ -98,6 +97,31 @@ export const receiveMessage = async (req: Request, res: Response) => {
         new: true,
       }
     );
+
+
+    const incoming = value.messages[0];
+
+    const msg = await Message.create({
+      channel_id: channel._id,
+      contact_id: contact._id,
+      direction: "IN",
+      type: incoming.type || "unknown",
+      status: "SENT", // incoming already received
+      wa_message_id: incoming.id,
+      payload: incoming,
+    });
+
+    // update contact last message
+    await Contact.updateOne(
+      { _id: contact._id },
+      {
+        $set: {
+          last_message_id: msg._id,
+          last_message_at: new Date(),
+        },
+      }
+    );
+
 
     let session = await AutomationSession.findOne({
       phone: from,
@@ -117,7 +141,7 @@ export const receiveMessage = async (req: Request, res: Response) => {
       });
     }
 
-    const whatsapp = createWhatsAppClient(channel);
+    const whatsapp = createWhatsAppClient(channel, contact);
 
     await runAutomation({
       automation,

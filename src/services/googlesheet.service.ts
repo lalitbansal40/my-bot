@@ -8,12 +8,9 @@ export class GoogleSheetService {
   private spreadsheetId: string;
   private headers: string[] = [];
 
- constructor(spreadsheetId: string) {
-    if (
-      !process.env.GOOGLE_CLIENT_EMAIL ||
-      !process.env.GOOGLE_PRIVATE_KEY
-    ) {
-      throw new Error("Missing Google credentials in ENV");
+  constructor(spreadsheetId: string) {
+    if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
+      throw new Error("Google service account not configured");
     }
 
     const auth = new google.auth.JWT({
@@ -26,6 +23,7 @@ export class GoogleSheetService {
     this.spreadsheetId = spreadsheetId;
   }
 
+
   /* ===== Load Header Row ===== */
   private async loadHeaders(sheetName: string) {
     if (this.headers.length) return;
@@ -36,6 +34,12 @@ export class GoogleSheetService {
     });
 
     this.headers = res.data.values?.[0] || [];
+  }
+
+  /* ===== Get Headers (PUBLIC) ===== */
+  async getHeaders(sheetName: string): Promise<string[]> {
+    await this.loadHeaders(sheetName);
+    return this.headers;
   }
 
   /* ===== Get All Data ===== */

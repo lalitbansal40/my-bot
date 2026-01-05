@@ -11,6 +11,9 @@ import { interpolate, reverseGeocode } from "../helpers/whatsapp.helper";
 import { calculateDistance, getStructuredAddress } from "../utils/googlemaps";
 import { IncomingMessage } from "./automationExecuter";
 import { getNextNodeByCondition } from "../utils/automation";
+import { getIntegration } from "../services/integration.resolver";
+import { GoogleSheetService } from "../services/googlesheet.service";
+import { makeGoogleSheetPayload } from "../utils/makeGoogleSheetPayload";
 
 /* =========================
    CONTEXT TYPE
@@ -62,11 +65,16 @@ export const executeNode = async ({
       // ✅ interpolate variables first
       text = interpolate(text, session.data);
 
-      // ✅ append Google Maps link (if available)
-      const mapUrl = session.data?.addressData?.googleMapsUrl;
-      if (mapUrl) {
-        text += `\n\n🗺️ *View on Google Maps:*\n${mapUrl}`;
+      if (
+        node.id === "confirm_address_en" ||
+        node.id === "confirm_address_hi"
+      ) {
+        const mapUrl = session.data?.addressData?.googleMapsUrl;
+        if (mapUrl) {
+          text += `\n\n🗺️ View on Google Maps:\n${mapUrl}`;
+        }
       }
+
 
       if (node.buttons?.length) {
 
@@ -194,9 +202,6 @@ export const executeNode = async ({
       });
     }
 
-
-
-
     case "send_flow": {
       /**
        * 1️⃣ FLOW RESPONSE RECEIVED
@@ -274,7 +279,6 @@ export const executeNode = async ({
 
     case "distance_check": {
       const address = session.data?.addressData;
-      console.log({ session })
       if (!address?.latitude || !address?.longitude) {
         console.warn("❌ No address found for distance check");
         return;
@@ -315,6 +319,54 @@ export const executeNode = async ({
         whatsapp,
         updateSession,
       });
+    }
+
+    case "google_sheet": {
+      // 1️⃣ ensure integration enabled
+      await getIntegration(
+        automation.account_id.toString(),
+        "google_sheet"
+      );
+
+      if (!node.spreadsheet_id || !node.sheet_name) {
+        throw new Error("Google Sheet node not configured");
+      }
+
+      // 2️⃣ FETCH CONTACT (🔥 THIS WAS MISSING)
+      const contact = await Contact.findById(
+        session.contact_id
+      ).lean();
+
+      if (!contact) {
+        throw new Error("Contact not found for Google Sheet node");
+      }
+
+      // 3️⃣ create service using NODE spreadsheet_id
+      const sheet = new GoogleSheetService(
+        node.spreadsheet_id
+      );
+
+      // 4️⃣ load headers (source of truth)
+      const headers = await sheet.getHeaders(
+        node.sheet_name
+      );
+
+      // 5️⃣ build payload (future-proof)
+      const payload = makeGoogleSheetPayload(
+        headers,
+        contact,
+        session.data,
+        node.map // optional override
+      );
+
+      console.log("GOOGLE SHEET PAYLOAD:", payload);
+
+      // 6️⃣ execute action
+      if (node.action === "create") {
+        await sheet.create(payload, node.sheet_name);
+      }
+
+      return moveNext();
     }
 
     default:

@@ -11,39 +11,33 @@ export type AutomationNodeType =
   | "ask_user_input"
   | "send_flow"
   | "send_utility_template"
-  | "distance_check";
+  | "distance_check"
+  | "google_sheet"
+  | "razorpay_payment"
+  | "borzo_delivery";
 
 /* ---------- NODE ---------- */
 export interface AutomationNode {
   id: string;
   type: AutomationNodeType;
 
-  conditions?: {
-    match_type: "exact" | "contains" | "starts_with";
-    keywords: string[];
-  };
-  // common
+  // existing
   message?: string;
-
-  // buttons (auto_reply)
   buttons?: {
     type: string;
     id: string;
     title: string;
   }[];
 
-  // ask_user_input
   save_to?: string;
   validation?: "email" | "phone" | "text";
 
-  // send_flow
   flow_id?: string;
   header?: string;
   body?: string;
   cta?: string;
   startScreen?: string;
 
-  // utility template
   template_name?: string;
   language?: string;
   parameters?: string[];
@@ -52,7 +46,26 @@ export interface AutomationNode {
   reference_lng?: number;
   max_distance_km?: number;
 
+  /* 🔥 ADD FROM HERE 🔥 */
+
+  // ---- integration common ----
+  integration_slug?: string; // e.g. google_sheet, razorpay
+
+  // ---- google sheet ----
+  spreadsheet_id?: string;
+  sheet_name?: string;
+  action?: "create" | "update" | "delete";
+  map?: Record<string, string>; // {{variable}}
+
+  // ---- razorpay ----
+  amount?: string;
+  currency?: string;
+  receipt?: string;
+
+  // ---- borzo / others (future safe) ----
+  config?: Record<string, any>;
 }
+
 
 /* ---------- EDGE ---------- */
 export interface AutomationEdge {
@@ -69,7 +82,7 @@ export interface AutomationDocument extends Document {
   disable_automation: boolean;
 
   channel_id: mongoose.Types.ObjectId;
-
+  account_id: mongoose.Types.ObjectId;
   nodes: AutomationNode[];
   edges: AutomationEdge[];
 
@@ -99,6 +112,10 @@ const AutomationNodeSchema = new Schema<AutomationNode>(
         "ask_user_input",
         "send_flow",
         "send_utility_template",
+        "google_sheet",
+        "razorpay_payment",
+        "borzo_delivery",
+
       ],
       required: true,
     },
@@ -133,6 +150,18 @@ const AutomationNodeSchema = new Schema<AutomationNode>(
     reference_lat: { type: Number },
     reference_lng: { type: Number },
     max_distance_km: { type: Number },
+    spreadsheet_id: { type: String },
+    sheet_name: { type: String },
+    action: { type: String },
+    map: { type: Schema.Types.Mixed },
+
+    integration_slug: { type: String },
+
+    amount: { type: String },
+    currency: { type: String },
+    receipt: { type: String },
+
+    config: { type: Schema.Types.Mixed },
 
   },
   { _id: false }
@@ -198,6 +227,13 @@ const AutomationSchema = new Schema<AutomationDocument>(
       required: true,
     },
     keywords: [{ type: String }],
+    account_id: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
   },
   {
     timestamps: true,
@@ -206,6 +242,7 @@ const AutomationSchema = new Schema<AutomationDocument>(
 
 // Fast lookup for active automation per channel
 AutomationSchema.index({
+  account_id: 1,
   channel_id: 1,
   trigger: 1,
   status: 1,
