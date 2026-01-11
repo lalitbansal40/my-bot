@@ -18,11 +18,17 @@ export type AutomationNodeType =
 
 /* ---------- NODE ---------- */
 export interface AutomationNode {
+  /* =========================
+     CORE
+  ========================= */
   id: string;
   type: AutomationNodeType;
 
-  // existing
+  /* =========================
+     COMMON (ALL NODES)
+  ========================= */
   message?: string;
+
   buttons?: {
     type: string;
     id: string;
@@ -32,39 +38,75 @@ export interface AutomationNode {
   save_to?: string;
   validation?: "email" | "phone" | "text";
 
+  /* =========================
+     FLOW NODE
+  ========================= */
   flow_id?: string;
   header?: string;
   body?: string;
   cta?: string;
   startScreen?: string;
 
-  template_name?: string;
-  language?: string;
-  parameters?: string[];
-  keywords?: string[];
+  /* =========================
+     DISTANCE CHECK
+  ========================= */
   reference_lat?: number;
   reference_lng?: number;
   max_distance_km?: number;
 
-  /* 🔥 ADD FROM HERE 🔥 */
+  /* =========================
+     INTEGRATION (COMMON)
+  ========================= */
+  integration_slug?: string; // google_sheet | razorpay | borzo | shiprocket etc.
 
-  // ---- integration common ----
-  integration_slug?: string; // e.g. google_sheet, razorpay
-
-  // ---- google sheet ----
+  /* =========================
+     GOOGLE SHEET NODE
+  ========================= */
   spreadsheet_id?: string;
   sheet_name?: string;
   action?: "create" | "update" | "delete";
-  map?: Record<string, string>; // {{variable}}
+  map?: Record<string, string>; // {{template}} based mapping
 
-  // ---- razorpay ----
+  /* =========================
+     RAZORPAY PAYMENT NODE
+  ========================= */
   amount?: string;
   currency?: string;
   receipt?: string;
 
-  // ---- borzo / others (future safe) ----
-  config?: Record<string, any>;
+  /* =========================
+     BORZO DELIVERY NODE
+  ========================= */
+  borzo_action?:
+  | "calculate"
+  | "create"
+  | "update"
+  | "cancel"
+  | "track"
+  | "get_order";
+
+  vehicle_type_id?: number;
+
+  pickup?: {
+    address?: string;     // {{address}}
+    latitude?: string;    // {{addressData.latitude}}
+    longitude?: string;   // {{addressData.longitude}}
+  };
+
+  drop?: {
+    address?: string;
+    latitude?: string;
+    longitude?: string;
+  };
+
+  order_id?: string; // used for update / cancel / track
+
+  /* =========================
+     FUTURE / CUSTOM
+  ========================= */
+  config?: Record<string, any>; // shiprocket, webhook, email, sms, etc.
 }
+
 
 
 /* ---------- EDGE ---------- */
@@ -112,15 +154,16 @@ const AutomationNodeSchema = new Schema<AutomationNode>(
         "ask_user_input",
         "send_flow",
         "send_utility_template",
+        "distance_check",
         "google_sheet",
         "razorpay_payment",
         "borzo_delivery",
-
       ],
       required: true,
     },
 
-    message: { type: String },
+    /* ===== COMMON ===== */
+    message: String,
 
     buttons: {
       type: [
@@ -132,40 +175,62 @@ const AutomationNodeSchema = new Schema<AutomationNode>(
       default: undefined,
     },
 
-    save_to: { type: String },
+    save_to: String,
     validation: {
       type: String,
       enum: ["email", "phone", "text"],
     },
 
-    flow_id: { type: String },
-    header: { type: String },
-    body: { type: String },
-    cta: { type: String },
-    startScreen: { type: String },
+    /* ===== FLOW ===== */
+    flow_id: String,
+    header: String,
+    body: String,
+    cta: String,
+    startScreen: String,
 
-    template_name: { type: String },
-    language: { type: String, default: "en" },
-    parameters: [{ type: String }],
-    reference_lat: { type: Number },
-    reference_lng: { type: Number },
-    max_distance_km: { type: Number },
-    spreadsheet_id: { type: String },
-    sheet_name: { type: String },
-    action: { type: String },
-    map: { type: Schema.Types.Mixed },
+    /* ===== DISTANCE ===== */
+    reference_lat: Number,
+    reference_lng: Number,
+    max_distance_km: Number,
 
-    integration_slug: { type: String },
+    /* ===== INTEGRATION ===== */
+    integration_slug: String,
 
-    amount: { type: String },
-    currency: { type: String },
-    receipt: { type: String },
+    /* ===== GOOGLE SHEET ===== */
+    spreadsheet_id: String,
+    sheet_name: String,
+    action: String,
+    map: Schema.Types.Mixed,
 
-    config: { type: Schema.Types.Mixed },
+    /* ===== BORZO ===== */
+    borzo_action: String,
+    vehicle_type_id: Number,
 
+    pickup: {
+      address: String,
+      latitude: String,
+      longitude: String,
+    },
+
+    drop: {
+      address: String,
+      latitude: String,
+      longitude: String,
+    },
+
+    order_id: String,
+
+    /* ===== RAZORPAY ===== */
+    amount: String,
+    currency: String,
+    receipt: String,
+
+    /* ===== FUTURE ===== */
+    config: Schema.Types.Mixed,
   },
   { _id: false }
 );
+
 
 /* ---------- EDGE SCHEMA ---------- */
 const AutomationEdgeSchema = new Schema<AutomationEdge>(

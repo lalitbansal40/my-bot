@@ -14,6 +14,8 @@ import { getNextNodeByCondition } from "../utils/automation";
 import { getIntegration } from "../services/integration.resolver";
 import { GoogleSheetService } from "../services/googlesheet.service";
 import { makeGoogleSheetPayload } from "../utils/makeGoogleSheetPayload";
+import { buildBorzoPayload } from "../utils/borzopayload";
+import { BorzoApiClient } from "../services/borzo.service";
 
 /* =========================
    CONTEXT TYPE
@@ -365,6 +367,106 @@ export const executeNode = async ({
       if (node.action === "create") {
         await sheet.create(payload, node.sheet_name);
       }
+
+      return moveNext();
+    }
+
+    case "borzo_delivery": {
+      // 1️⃣ get borzo client (account based)
+    const borzoSecrets =  await getIntegration(
+        automation.account_id.toString(),
+        "borzo"
+      );
+
+      const borzo = await new BorzoApiClient(borzoSecrets.auth_token,borzoSecrets.environment);
+
+      // 2️⃣ fetch contact
+      const contact = await Contact.findById(
+        session.contact_id
+      ).lean();
+
+      if (!contact) {
+        throw new Error("Contact not found for Borzo node");
+      }
+
+      let response: any;
+
+      // 3️⃣ SWITCH BASED ON ACTION
+      switch (node.borzo_action) {
+
+        case "calculate": {
+          const payload = buildBorzoPayload(
+            node,
+            contact,
+            session.data
+          );
+          response = await borzo.calculatePrice(payload);
+          break;
+        }
+
+        case "create": {
+          const payload = buildBorzoPayload(
+            node,
+            contact,
+            session.data
+          );
+          response = await borzo.createOrder(payload);
+          break;
+        }
+
+        case "update": {
+          const orderId = interpolate(
+            node.order_id!,
+            session.data
+          );
+          response = await borzo.updateOrder(
+            orderId,
+            node.config || {}
+          );
+          break;
+        }
+
+        case "cancel": {
+          const orderId = interpolate(
+            node.order_id!,
+            session.data
+          );
+          response = await borzo.cancelOrder(orderId);
+          break;
+        }
+
+        case "track": {
+          const deliveryId = interpolate(
+            node.order_id!,
+            session.data
+          );
+          response = await borzo.getCourierLocation(deliveryId);
+          break;
+        }
+
+        case "get_order": {
+          const orderId = interpolate(
+            node.order_id!,
+            session.data
+          );
+          response = await borzo.getOrderInfo(orderId);
+          break;
+        }
+
+        default:
+          throw new Error("Invalid Borzo action");
+      }
+
+      // 4️⃣ SAVE RESPONSE
+      const saveKey = node.save_to || "borzo";
+      await Contact.updateOne(
+        { _id: contact._id },
+        {
+          $set: {
+            [`attributes.${saveKey}`]: response,
+          },
+        }
+      );
 
       return moveNext();
     }

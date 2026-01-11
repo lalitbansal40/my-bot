@@ -61,6 +61,7 @@ export const verifyWebhook = async (
 ===================================================== */
 export const receiveMessage = async (req: Request, res: Response) => {
   try {
+    console.log("req.bod.   ::  ",JSON.stringify(req.body))
     const value = req.body?.entry?.[0]?.changes?.[0]?.value;
     if (!value?.messages) return res.sendStatus(200);
 

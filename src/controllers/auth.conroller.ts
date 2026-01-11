@@ -4,6 +4,7 @@ import Subscription from "../models/subcription.model";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import path from "path";
+import bcrypt from "bcryptjs";
 
 dotenv.config({ path: path.join(".env") });
 export const register = async (req:Request, res:Response) => {
@@ -53,13 +54,12 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // 🔍 find user by email OR phone
-    const user = await User.findOne({
-      $or: [
-        email ? { email } : {},
-        phone ? { phone } : {},
-      ],
-    });
+    // ✅ SAFE QUERY BUILD
+    const conditions: any[] = [];
+    if (email) conditions.push({ email });
+    if (phone) conditions.push({ phone });
+
+    const user = await User.findOne({ $or: conditions });
 
     if (!user) {
       return res.status(401).json({
@@ -67,15 +67,15 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // 🔐 compare password
-    const isMatch = await user.comparePassword(password);
+    // ✅ SAFE PASSWORD CHECK
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({
         message: "Invalid credentials",
       });
     }
 
-    // 🎟 JWT token
+    // ✅ JWT
     const token = jwt.sign(
       { user_id: user._id },
       process.env.JWT_SECRET as string,
