@@ -29,6 +29,13 @@ export interface WhatsAppClient {
     bodyText: string,
     buttons: WhatsAppButton[]
   ): Promise<void>;
+
+  sendUrlButton(
+    to: string,
+    bodyText: string,
+    buttonText: string,
+    url: string
+  ): Promise<void>;
 }
 
 
@@ -326,7 +333,67 @@ export const createWhatsAppClient = (
 
         logError("sendButtons", e);
       }
+    },
+
+    async sendUrlButton(to, bodyText, buttonText, url) {
+      const msg = await Message.create({
+        channel_id: channel._id,
+        contact_id: contact._id,
+        direction: "OUT",
+        type: "cta_url",
+        status: "PENDING",
+        payload: { bodyText, buttonText, url },
+      });
+
+      try {
+        await api.post("/messages", {
+          messaging_product: "whatsapp",
+          to,
+          type: "interactive",
+          interactive: {
+            type: "cta_url",
+            body: {
+              text: bodyText,
+            },
+            action: {
+              name: "cta_url",
+              parameters: {
+                display_text: buttonText.substring(0, 20),
+                url,
+              },
+            },
+          },
+        });
+
+        await Message.updateOne(
+          { _id: msg._id },
+          { status: "SENT" }
+        );
+
+        await Contact.updateOne(
+          { _id: contact._id },
+          {
+            $set: {
+              last_message_id: msg._id,
+              last_message_at: new Date(),
+            },
+          }
+        );
+      } catch (e: any) {
+        await Message.updateOne(
+          { _id: msg._id },
+          {
+            status: "FAILED",
+            error: JSON.stringify(
+              e?.response?.data || e?.message || "Unknown error"
+            ),
+          }
+        );
+
+        logError("sendUrlButton", e);
+      }
     }
+
 
   };
 };

@@ -68,9 +68,9 @@ export class BorzoApiClient {
 
   constructor(
     private authToken: string,
-    useProduction: boolean = false
+    useProduction: string
   ) {
-    const baseURL = useProduction
+    const baseURL = useProduction !== "test"
       ? "https://robot-in.borzodelivery.com/api/business/1.6"
       : "https://robotapitest-in.borzodelivery.com/api/business/1.6";
 

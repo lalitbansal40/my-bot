@@ -10,20 +10,11 @@ interface FlowDecryptedBody {
     flow_token?: string;
 }
 
-const REFERENCE_COORDS = {
-    lat: 26.838606673565817,
-    lng: 75.82641420437723,
-};
-
 class CakeArena {
     private googleSheet = new GoogleSheetService(
         "1xlAP136l66VtTjoMkdTEueo-FXKD7_L1RJUlaxefXzI"
     );
 
-    private borzo = new BorzoApiClient(
-        "7086ED3616843A380A867EB9BC097B024BAF5518",
-        false
-    );
 
     /* =========================
        MAIN ENTRY POINT
@@ -139,45 +130,6 @@ class CakeArena {
 
     private calculateTotal(items: { price: number }[]) {
         return items.reduce((sum, i) => sum + i.price, 0);
-    }
-
-    private async calculateDeliveryPrice(phone: string, customer: any) {
-        const resp = await this.borzo.calculatePrice({
-            matter: "Cake Delivery",
-            vehicle_type_id: 8, // ✅ REQUIRED in India
-            points: [
-                {
-                    address: "Cake Arena Bakery, Jaipur",
-                    latitude: REFERENCE_COORDS.lat,
-                    longitude: REFERENCE_COORDS.lng,
-                    contact_person: { phone },
-                },
-                {
-                    address: customer.delivery_address || "Customer Address",
-                    latitude: Number(customer.latitude),
-                    longitude: Number(customer.longitude),
-                    contact_person: { phone },
-                },
-            ],
-        });
-
-
-        // 🔍 Debug safety
-        if (resp?.warnings?.length) {
-            console.warn("Borzo warnings:", resp.warnings, resp.parameter_warnings);
-        }
-
-        if (!resp?.is_successful) {
-            throw new Error("Borzo calculate price failed");
-        }
-
-        const fee = resp?.order?.delivery_fee_amount;
-
-        if (!fee) {
-            throw new Error("Borzo returned empty delivery fee");
-        }
-
-        return Number(fee);
     }
 
     /* =========================

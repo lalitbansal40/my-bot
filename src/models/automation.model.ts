@@ -14,7 +14,9 @@ export type AutomationNodeType =
   | "distance_check"
   | "google_sheet"
   | "razorpay_payment"
-  | "borzo_delivery";
+  | "borzo_delivery"
+  | "razorpay_payment"   // ✅ ADD
+  | "payment_summary";
 
 /* ---------- NODE ---------- */
 export interface AutomationNode {

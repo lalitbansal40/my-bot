@@ -59,3 +59,41 @@ export const configureBorzo = async (req: Request, res: Response) => {
     message: "Borzo integration configured successfully",
   });
 };
+
+export const configureRazorpay = async (req: Request, res: Response) => {
+  const userId = (req.user as any)?.user_id;
+
+  if (!userId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const { key_id, key_secret, environment } = req.body;
+
+  if (!key_id || !key_secret) {
+    return res.status(400).json({
+      message: "Razorpay key_id and key_secret are required",
+    });
+  }
+
+  await Integration.findOneAndUpdate(
+    {
+      user_id: userId,
+      slug: "razorpay",
+    },
+    {
+      user_id: userId,
+      slug: "razorpay",
+      is_active: true,
+      config: {
+        key_id,                 // 🔐 Razorpay Key ID
+        key_secret,             // 🔐 Razorpay Secret
+        environment: environment || "test", // test | production
+      },
+    },
+    { upsert: true, new: true }
+  );
+
+  return res.json({
+    message: "Razorpay integration configured successfully",
+  });
+};

@@ -16,6 +16,7 @@ import { GoogleSheetService } from "../services/googlesheet.service";
 import { makeGoogleSheetPayload } from "../utils/makeGoogleSheetPayload";
 import { buildBorzoPayload } from "../utils/borzopayload";
 import { BorzoApiClient } from "../services/borzo.service";
+import { RazorpayService } from "../services/razorpay.service";
 
 /* =========================
    CONTEXT TYPE
@@ -54,8 +55,27 @@ export const executeNode = async ({
     const nextNodeId = getNextNodeId(automation.edges, node.id);
     if (!nextNodeId) return;
 
-    await updateSession({ current_node: nextNodeId });
+    await updateSession({
+      current_node: nextNodeId,
+      waiting_for: null,
+    });
+
+    const nextNode = automation.nodes.find(
+      (n) => n.id === nextNodeId
+    );
+
+    if (!nextNode) return;
+
+    return executeNode({
+      node: nextNode,
+      automation,
+      session,
+      message,
+      whatsapp,
+      updateSession,
+    });
   };
+
 
   /* ===============================
      NODE TYPE HANDLING
@@ -373,12 +393,12 @@ export const executeNode = async ({
 
     case "borzo_delivery": {
       // 1️⃣ get borzo client (account based)
-    const borzoSecrets =  await getIntegration(
+      const borzoSecrets = await getIntegration(
         automation.account_id.toString(),
         "borzo"
       );
 
-      const borzo = await new BorzoApiClient(borzoSecrets.auth_token,borzoSecrets.environment);
+      const borzo = await new BorzoApiClient(borzoSecrets.auth_token, borzoSecrets.environment);
 
       // 2️⃣ fetch contact
       const contact = await Contact.findById(
@@ -470,6 +490,106 @@ export const executeNode = async ({
 
       return moveNext();
     }
+
+    case "razorpay_payment": {
+      if (!node.config) {
+        throw new Error("razorpay_payment node config missing");
+      }
+
+      const razorpayConfig = await getIntegration(
+        automation.account_id.toString(),
+        "razorpay"
+      );
+
+      const razorpay = new RazorpayService(
+        razorpayConfig.key_id,
+        razorpayConfig.key_secret
+      );
+
+      const contact = await Contact.findById(session.contact_id).lean();
+      if (!contact) throw new Error("Contact not found");
+
+      const context = {
+        ...session.data,
+        phone: contact.phone,
+        name: contact.name,
+      };
+
+      const itemAmount = Number(
+        interpolate(node.config.item_amount, context)
+      );
+
+      const deliveryAmount = Number(
+        interpolate(node.config.delivery_amount, context)
+      );
+
+      const totalAmount = itemAmount + deliveryAmount;
+
+      const paymentLink = await razorpay.createPaymentLink({
+        amount: totalAmount,
+        customerName: contact.name || "Customer",
+        customerPhone: contact.phone.slice(-10),
+        description: node.config.description || "Payment",
+        referenceId: session._id.toString(),
+      });
+
+      await updateSession({
+        data: {
+          ...session.data,
+          payment: {
+            item_amount: itemAmount,
+            delivery_amount: deliveryAmount,
+            total_amount: totalAmount,
+            payment_link: paymentLink.short_url,
+            payment_link_id: paymentLink.id,
+          },
+        },
+      });
+
+      return moveNext();
+    }
+
+    case "payment_summary": {
+      if (!node.config) {
+        throw new Error("payment_summary node config missing");
+      }
+
+      const contact = await Contact.findById(session.contact_id).lean();
+      if (!contact) throw new Error("Contact not found");
+
+      const context = {
+        ...session.data,
+        phone: contact.phone,
+        name: contact.name,
+      };
+
+      /* =========================
+         BUILD MESSAGE
+      ========================= */
+      let text = `*${node.config.title}*\n\n`;
+
+      for (const row of node.config.rows) {
+        text += `• *${row.label}:* ${interpolate(row.value, context)}\n`;
+      }
+
+      text += `\n━━━━━━━━━━━━━━\n`;
+      text += `💳 *Total Amount:* ₹${session.data.payment.total_amount}\n`;
+      text += `━━━━━━━━━━━━━━`;
+
+      /* =========================
+         SEND PAY NOW BUTTON
+      ========================= */
+      await whatsapp.sendUrlButton(
+        from,
+        text,
+        node.config.button_text || "Pay Now 💳",
+        session.data.payment.payment_link
+      );
+
+
+      return moveNext();
+    }
+
 
     default:
       console.warn("⚠️ Unsupported node type:", node.type);

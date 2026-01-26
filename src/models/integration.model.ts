@@ -63,7 +63,7 @@ const IntegrationSchema = new Schema<IntegrationDocument>(
  * 🔥 ONE integration per account per service
  */
 IntegrationSchema.index(
-  { user_id: 1, slug: 1 },
+  { user_id: 1, slug: 1, account_id: 1 },
   { unique: true }
 );
 
