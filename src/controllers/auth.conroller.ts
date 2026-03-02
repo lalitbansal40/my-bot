@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import path from "path";
 import bcrypt from "bcryptjs";
+import { AuthRequest } from "../types/auth.types";
 
 dotenv.config({ path: path.join(".env") });
 export const register = async (req:Request, res:Response) => {
@@ -95,5 +96,15 @@ export const login = async (req: Request, res: Response) => {
     return res.status(500).json({
       message: "Something went wrong",
     });
+  }
+};
+
+export const getMe = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await User.findById(req.user?.user_id).select("-password");
+
+    res.json({ user });
+  } catch {
+    res.status(500).json({ message: "Server error" });
   }
 };

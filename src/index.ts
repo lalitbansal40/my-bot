@@ -8,11 +8,14 @@ import channelRoutes from "./routes/channel.routes";
 import authRoutes from "./routes/auth.routes";
 import integrationRoutes from "./routes/integration.routes";
 import whatsappFlowRoutes from "./routes/whatsappFlow.route";
+import contactRoutes from "./routes/contact.route";
+import messageRoutes from "./routes/message.route";
 import { connectMongo } from "./database/mongodb"; // ✅ CHANGE: Mongo connect
-
+import cors from "cors";
 dotenv.config({ path: path.join(".env") });
 
 const app = express();
+app.use(cors());
 const PORT = Number(process.env.PORT) || 5005;
 
 /* =========================
@@ -58,9 +61,11 @@ app.use(async (_req, res, next) => {
    🔹 ROUTES
 ========================= */
 app.use("/webhook", webhookRoutes);
-app.use("/channel", channelRoutes);
-app.use("/auth", authRoutes);
-app.use("/integrations", integrationRoutes);
+app.use("/api/channel", channelRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/contact", contactRoutes);
+app.use("/api/message", messageRoutes);
+app.use("/api/integrations", integrationRoutes);
 app.use("/whatsappflow", whatsappFlowRoutes);
 
 /* =========================
