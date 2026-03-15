@@ -8,7 +8,7 @@
       "name": "aws",
       "runtime": "nodejs18.x",
       "region": "ap-south-1",
-      "stage": "dev",
+      "stage": "prod",
       "timeout": 30,
       "deploymentBucket": "my-bot-serverless-deploy-302767540275",
       "versionFunctions": true,
@@ -23,7 +23,7 @@
           "ApiLogGroup": {
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
-              "LogGroupName": "/aws/lambda/my-bot-dev-api"
+              "LogGroupName": "/aws/lambda/my-bot-prod-api"
             }
           },
           "IamRoleLambdaExecution": {
@@ -52,7 +52,7 @@
                       "-",
                       [
                         "my-bot",
-                        "dev",
+                        "prod",
                         "lambda"
                       ]
                     ]
@@ -69,7 +69,7 @@
                         ],
                         "Resource": [
                           {
-                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/my-bot-dev*:*"
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/my-bot-prod*:*"
                           }
                         ]
                       },
@@ -80,7 +80,7 @@
                         ],
                         "Resource": [
                           {
-                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/my-bot-dev*:*:*"
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/my-bot-prod*:*:*"
                           }
                         ]
                       }
@@ -94,7 +94,7 @@
                   "-",
                   [
                     "my-bot",
-                    "dev",
+                    "prod",
                     {
                       "Ref": "AWS::Region"
                     },
@@ -109,11 +109,11 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "my-bot-serverless-deploy-302767540275",
-                "S3Key": "serverless/my-bot/dev/1767588983458-2026-01-05T04:56:23.458Z/my-bot.zip"
+                "S3Key": "serverless/my-bot/prod/1773604887412-2026-03-15T20:01:27.412Z/my-bot.zip"
               },
               "Handler": "src/index.handler",
               "Runtime": "nodejs18.x",
-              "FunctionName": "my-bot-dev-api",
+              "FunctionName": "my-bot-prod-api",
               "MemorySize": 1024,
               "Timeout": 30,
               "Environment": {
@@ -132,20 +132,20 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersiondrYnX3kCbeERsR0k5pTtamN0619xLg5aOWoknP1qc": {
+          "ApiLambdaVersionCTfCcWfHOgnHKpnVPDyJ9n4j7st2CmQJ30dDEL8": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "iq0PsLAFXTARjZsTrmchGH9VB9dYH1axWCNAVzy4w84="
+              "CodeSha256": "PVYt52IPEdVH+FJjSKjXhFpVzk7vGBf4sxFEb5T0hQo="
             }
           },
           "HttpApi": {
             "Type": "AWS::ApiGatewayV2::Api",
             "Properties": {
-              "Name": "dev-my-bot",
+              "Name": "prod-my-bot",
               "ProtocolType": "HTTP"
             }
           },
@@ -239,16 +239,16 @@
           "ServerlessDeploymentBucketName": {
             "Value": "my-bot-serverless-deploy-302767540275",
             "Export": {
-              "Name": "sls-my-bot-dev-ServerlessDeploymentBucketName"
+              "Name": "sls-my-bot-prod-ServerlessDeploymentBucketName"
             }
           },
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersiondrYnX3kCbeERsR0k5pTtamN0619xLg5aOWoknP1qc"
+              "Ref": "ApiLambdaVersionCTfCcWfHOgnHKpnVPDyJ9n4j7st2CmQJ30dDEL8"
             },
             "Export": {
-              "Name": "sls-my-bot-dev-ApiLambdaFunctionQualifiedArn"
+              "Name": "sls-my-bot-prod-ApiLambdaFunctionQualifiedArn"
             }
           },
           "HttpApiId": {
@@ -257,7 +257,7 @@
               "Ref": "HttpApi"
             },
             "Export": {
-              "Name": "sls-my-bot-dev-HttpApiId"
+              "Name": "sls-my-bot-prod-HttpApiId"
             }
           },
           "HttpApiUrl": {
@@ -282,7 +282,7 @@
               ]
             },
             "Export": {
-              "Name": "sls-my-bot-dev-HttpApiUrl"
+              "Name": "sls-my-bot-prod-HttpApiUrl"
             }
           }
         }
@@ -302,7 +302,7 @@
             "resolvedMethod": "ANY"
           }
         ],
-        "name": "my-bot-dev-api",
+        "name": "my-bot-prod-api",
         "environment": {
           "NODE_OPTIONS": "--enable-source-maps"
         },
@@ -311,7 +311,7 @@
         "timeout": 30,
         "runtime": "nodejs18.x",
         "vpc": {},
-        "versionLogicalId": "ApiLambdaVersiondrYnX3kCbeERsR0k5pTtamN0619xLg5aOWoknP1qc"
+        "versionLogicalId": "ApiLambdaVersionCTfCcWfHOgnHKpnVPDyJ9n4j7st2CmQJ30dDEL8"
       }
     },
     "configValidationMode": "warn",
@@ -334,7 +334,7 @@
     "layers": {}
   },
   "package": {
-    "artifactDirectoryName": "serverless/my-bot/dev/1767588983458-2026-01-05T04:56:23.458Z",
+    "artifactDirectoryName": "serverless/my-bot/prod/1773604887412-2026-03-15T20:01:27.412Z",
     "artifact": "my-bot.zip"
   }
 }
