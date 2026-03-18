@@ -2,10 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Contact from "../models/contact.model";
 
-export const getContactsByChannel = async (
-  req: Request,
-  res: Response
-) => {
+export const getContactsByChannel = async (req: Request, res: Response) => {
   try {
     const { channelId } = req.params;
     const { search, cursor, limit = 20 } = req.query;
@@ -56,6 +53,61 @@ export const getContactsByChannel = async (
     return res.status(500).json({
       success: false,
       message: "Internal server error",
+    });
+  }
+};
+
+export const createContact = async (req: Request, res: Response) => {
+  try {
+    const channel_id = req.params.channelId;
+    const { phone, name } = req.body;
+
+    // 🔴 Validation
+    if (!phone || !channel_id) {
+      return res.status(400).json({
+        success: false,
+        message: "phone and channel_id are required",
+      });
+    }
+
+    // 🔥 Check existing contact
+    const existingContact = await Contact.findOne({
+      phone,
+      channel_id,
+    });
+
+    if (existingContact) {
+      return res.status(200).json({
+        success: true,
+        message: "Contact already exists",
+        data: existingContact,
+      });
+    }
+
+    // ✅ Create contact (minimal fields only)
+    const contact = await Contact.create({
+      phone,
+      name,
+      channel_id,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Contact created successfully",
+      data: contact,
+    });
+  } catch (error: any) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Contact already exists for this channel",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
     });
   }
 };
