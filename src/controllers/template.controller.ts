@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 import axios from "axios";
 import { Channel } from "../models/channel.model";
 import { uploadToS3V2 } from "../services/s3v2.service";
-
+import FormData from "form-data";
+import { TemplateModel } from "../models/template.model";
 // 🔥 Helper: Get Channel
 const getChannel = async (channelId: string) => {
   const channel = await Channel.findById(channelId);
@@ -37,101 +38,132 @@ export const createTemplate = async (req: Request, res: Response) => {
     name = name.toLowerCase().replace(/[^a-z0-9_]/g, "_");
 
     // ✅ SANITIZE + VALIDATE COMPONENTS
-    const sanitizedComponents = components.map((comp: any) => {
-      // 🔹 HEADER
-      if (comp.type === "HEADER") {
-        if (comp.format === "TEXT") {
-          if (!comp.text) {
-            throw new Error("Header text is required");
+    let headerFormat = null;
+    let mediaUrl = null;
+    const sanitizedComponents = await Promise.all(
+      components.map(async (comp: any) => {
+        // 🔹 HEADER
+        if (comp.type === "HEADER") {
+          if (comp.format === "TEXT") {
+            if (!comp.text) {
+              throw new Error("Header text is required");
+            }
+
+            return {
+              type: "HEADER",
+              format: "TEXT",
+              text: comp.text,
+            };
           }
+
+          // ✅ IMAGE / VIDEO / DOCUMENT
+          const fileUrl = comp?.example?.header_handle?.[0];
+          headerFormat = comp.format;
+          mediaUrl = fileUrl;
+          if (comp.format === "IMAGE" && !fileUrl.match(/\.(jpg|jpeg|png)$/)) {
+            throw new Error("Invalid IMAGE file");
+          }
+
+          if (comp.format === "VIDEO" && !fileUrl.endsWith(".mp4")) {
+            throw new Error("Invalid VIDEO file");
+          }
+
+          if (comp.format === "DOCUMENT" && !fileUrl.endsWith(".pdf")) {
+            throw new Error("Invalid DOCUMENT file");
+          }
+
+          if (!fileUrl) {
+            throw new Error("Media URL missing in header");
+          }
+
+          if (!fileUrl.startsWith("http")) {
+            throw new Error("Invalid media URL");
+          }
+
+          // 🔥 UPLOAD TO META FIRST
+          const mediaHandle = await uploadMediaForTemplate(
+            fileUrl,
+            channel.access_token,
+          );
 
           return {
             type: "HEADER",
-            format: "TEXT",
+            format: comp.format,
+            example: {
+              header_handle: [mediaHandle],
+            },
+          };
+        }
+
+        // 🔹 BODY
+        if (comp.type === "BODY") {
+          const variables = comp.text.match(/{{\d+}}/g);
+
+          const bodyComponent: any = {
+            type: "BODY",
             text: comp.text,
           };
-        }
 
-        // IMAGE / VIDEO / DOCUMENT
-        const url = comp?.example?.header_handle?.[0];
+          console.log("comp :: ",JSON.stringify(comp))
 
-        if (!url) {
-          throw new Error("Media URL missing in header");
-        }
+          console.log("comp.example :: ",comp.example)
 
-        if (!url.startsWith("http")) {
-          throw new Error("Invalid media URL (must be public URL)");
-        }
+          if (variables) {
+            // ✅ fallback (agar frontend miss kare)
+            const exampleValues = comp.example?.body_text || [
+              variables.map(() => "sample"),
+            ];
 
-        // 🔥 VERY IMPORTANT FIX (META ISSUE)
-        if (!url.includes(".")) {
-          throw new Error(
-            "Media URL must contain file extension (.jpg/.png/.mp4/.pdf)",
-          );
-        }
-
-        return {
-          type: "HEADER",
-          format: comp.format,
-          example: {
-            header_handle: [url],
-          },
-        };
-      }
-
-      // 🔹 BODY
-      if (comp.type === "BODY") {
-        if (!comp.text) {
-          throw new Error("BODY text is required");
-        }
-
-        return {
-          type: "BODY",
-          text: comp.text,
-        };
-      }
-
-      // 🔹 BUTTONS
-      if (comp.type === "BUTTONS") {
-        if (!Array.isArray(comp.buttons)) {
-          throw new Error("Buttons must be array");
-        }
-
-        const buttons = comp.buttons.map((btn: any) => {
-          if (!btn.text) {
-            throw new Error("Button text required");
-          }
-
-          if (btn.type === "PHONE_NUMBER") {
-            return {
-              type: "PHONE_NUMBER",
-              text: btn.text,
-              phone_number: btn.phone_number,
+            bodyComponent.example = {
+              body_text: exampleValues,
             };
           }
 
-          if (btn.type === "URL") {
-            return {
-              type: "URL",
-              text: btn.text,
-              url: btn.url,
-            };
+          return bodyComponent;
+        }
+
+        // 🔹 BUTTONS
+        if (comp.type === "BUTTONS") {
+          if (!Array.isArray(comp.buttons)) {
+            throw new Error("Buttons must be array");
           }
+
+          const buttons = comp.buttons.map((btn: any) => {
+            if (!btn.text) {
+              throw new Error("Button text required");
+            }
+
+            if (btn.type === "PHONE_NUMBER") {
+              return {
+                type: "PHONE_NUMBER",
+                text: btn.text,
+                phone_number: btn.phone_number,
+              };
+            }
+
+            if (btn.type === "URL") {
+              return {
+                type: "URL",
+                text: btn.text,
+                url: btn.url,
+              };
+            }
+
+            return {
+              type: "QUICK_REPLY",
+              text: btn.text,
+            };
+          });
 
           return {
-            type: "QUICK_REPLY",
-            text: btn.text,
+            type: "BUTTONS",
+            buttons,
           };
-        });
+        }
 
-        return {
-          type: "BUTTONS",
-          buttons,
-        };
-      }
-
-      return comp;
-    });
+        return comp;
+      }),
+    );
 
     // ✅ FINAL PAYLOAD
     const payload = {
@@ -141,7 +173,10 @@ export const createTemplate = async (req: Request, res: Response) => {
       components: sanitizedComponents,
     };
 
-    console.log("META PAYLOAD:", JSON.stringify(payload, null, 2));
+    console.log(
+      "SANITIZED COMPONENTS:",
+      JSON.stringify(sanitizedComponents, null, 2),
+    );
 
     // ✅ META API CALL
     const response = await axios.post(
@@ -154,6 +189,15 @@ export const createTemplate = async (req: Request, res: Response) => {
         },
       },
     );
+    await TemplateModel.create({
+      name,
+      language,
+      category,
+      header_format: headerFormat,
+      media_url: mediaUrl,
+      components: sanitizedComponents,
+      channel_id: channel._id,
+    });
 
     return res.json({
       success: true,
@@ -300,6 +344,114 @@ export const uploadMediaController = async (req: Request, res: Response) => {
       success: true,
       url,
     });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const uploadMediaForTemplate = async (fileUrl: string, accessToken: string) => {
+  // 1. Get file
+  const fileResponse = await axios.get(fileUrl, {
+    responseType: "arraybuffer",
+  });
+
+  const fileSize = fileResponse.data.length;
+  const contentType = fileResponse.headers["content-type"];
+
+  // 2. Create upload session
+  const session = await axios.post(
+    `https://graph.facebook.com/v19.0/app/uploads`,
+    {
+      file_length: fileSize,
+      file_type: contentType,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  const uploadId = session.data.id;
+
+  // 3. Upload file
+  const upload = await axios.post(
+    `https://graph.facebook.com/v19.0/${uploadId}`,
+    fileResponse.data,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/octet-stream",
+      },
+    },
+  );
+
+  return upload.data.h; // ✅ IMPORTANT (this is header_handle)
+};
+
+export const sendTemplate = async (req: Request, res: Response) => {
+  try {
+    const { templateName, to, bodyParams } = req.body;
+    const { channelId } = req.params;
+
+    const channel = await getChannel(channelId);
+
+    // ✅ DB se template lao
+    const template = await TemplateModel.findOne({ name: templateName });
+
+    if (!template) {
+      throw new Error("Template not found");
+    }
+
+    const components: any[] = [];
+
+    // 🔥 HEADER auto attach
+    if (template.header_format && template.media_url) {
+      components.push({
+        type: "header",
+        parameters: [
+          {
+            type: template.header_format.toLowerCase(),
+            [template.header_format.toLowerCase()]: {
+              link: template.media_url,
+            },
+          },
+        ],
+      });
+    }
+
+    // 🔥 BODY dynamic params
+    if (bodyParams?.length) {
+      components.push({
+        type: "body",
+        parameters: bodyParams.map((text: string) => ({
+          type: "text",
+          text,
+        })),
+      });
+    }
+
+    const response = await axios.post(
+      `https://graph.facebook.com/v19.0/${channel.phone_number_id}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: template.name,
+          language: { code: template.language },
+          components,
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${channel.access_token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    res.json({ success: true, data: response.data });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }

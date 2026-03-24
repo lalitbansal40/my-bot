@@ -4,6 +4,7 @@ import {
   deleteTemplate,
   getTemplateById,
   getTemplates,
+  sendTemplate,
   updateTemplate,
   uploadMediaController,
 } from "../controllers/template.controller";
@@ -40,6 +41,7 @@ router.get("/:channelId/:templateId", getTemplateById);
 
 // ✅ Create template
 router.post("/:channelId", createTemplate);
+router.post("/send-template/:channelId", sendTemplate);
 
 // ✅ Update template (recreate)
 router.put("/:channelId/:templateId", updateTemplate);
