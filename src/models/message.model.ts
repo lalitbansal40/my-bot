@@ -80,7 +80,11 @@ const MessageSchema = new Schema<MessageDocument>(
       default: null,
     },
 
-    error: { type: String },
+    error: {
+      code: Number,
+      message: String,
+      details: String,
+    },
   },
   { timestamps: true },
 );

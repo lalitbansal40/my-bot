@@ -501,6 +501,8 @@ export const sendTemplate = async (req: Request, res: Response) => {
       }
     );
 
+    console.log("data :: ",JSON.stringify(response.data));
+
     const waMessageId = response.data.messages?.[0]?.id;
 
     // ✅ UPDATE MESSAGE → SENT + RESPONSE

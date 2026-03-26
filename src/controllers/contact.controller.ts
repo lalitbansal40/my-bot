@@ -1,6 +1,11 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Contact from "../models/contact.model";
+import csv from "csv-parser";
+import fs from "fs";
+import xlsx from "xlsx";
+import { Parser } from "json2csv";
+import { parseFile } from "../utils/fileImport";
 
 export const getContactsByChannel = async (req: Request, res: Response) => {
   try {
@@ -222,4 +227,124 @@ const deepMerge = (target: any, source: any) => {
     }
   }
   return target;
+};
+
+const formatPhone = (phone: string) => {
+  let p = phone.replace(/\D/g, "");
+  if (!p.startsWith("91")) p = "91" + p;
+  return "+" + p;
+};
+
+export const importContacts = async (req: any, res: any) => {
+  try {
+    const { channelId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "File required" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "File required" });
+    }
+
+    // 🔥 handle both cases (disk + memory)
+    let filePath = req.file.path;
+
+    if (!filePath && req.file.buffer) {
+      const tempPath = `uploads/${Date.now()}-${req.file.originalname}`;
+      fs.writeFileSync(tempPath, req.file.buffer);
+      filePath = tempPath;
+    }
+
+    if (!filePath) {
+      return res.status(400).json({
+        success: false,
+        message: "File path not found",
+      });
+    }
+
+    const rows = await parseFile(filePath, req.file.originalname);
+
+    const seen = new Set();
+    let success = 0;
+    let failed = 0;
+
+    const operations = rows
+      .map((row: any) => {
+        const phoneRaw = row.phone || row.Phone || row.mobile;
+
+        if (!phoneRaw) {
+          failed++;
+          return null;
+        }
+
+        const phone = formatPhone(phoneRaw);
+
+        if (seen.has(phone)) {
+          failed++;
+          return null;
+        }
+
+        seen.add(phone);
+
+        const name = row.name || row.Name || "";
+
+        success++;
+
+        return {
+          updateOne: {
+            filter: { phone, channel_id: channelId },
+            update: {
+              $setOnInsert: {
+                phone,
+                name,
+                channel_id: channelId,
+                attributes: { source: "import" },
+              },
+            },
+            upsert: true,
+          },
+        };
+      })
+      .filter((op): op is any => op !== null); // 🔥 THIS FIX
+
+    await Contact.bulkWrite(operations);
+
+    fs.unlinkSync(req.file.path);
+
+    return res.json({
+      success: true,
+      inserted: success,
+      skipped: failed,
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+export const exportContacts = async (req: Request, res: Response) => {
+  try {
+    const { channelId } = req.params;
+
+    const contacts = await Contact.find({ channel_id: channelId });
+
+    const data = contacts.map((c) => ({
+      name: c.name || "",
+      phone: c.phone,
+      unread_count: c.unread_count || 0,
+      created_at: c.createdAt,
+    }));
+
+    const parser = new Parser();
+    const csv = parser.parse(data);
+
+    res.header("Content-Type", "text/csv");
+    res.attachment("contacts.csv");
+    return res.send(csv);
+  } catch (err: any) {
+    return res.status(500).json({ message: err.message });
+  }
 };

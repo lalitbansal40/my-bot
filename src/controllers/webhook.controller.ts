@@ -33,9 +33,6 @@ export const verifyWebhook = async (
   res: Response,
 ): Promise<Response> => {
   try {
-    console.log("Received webhook verification request:", {
-      query: req.query,
-    });
     const mode = req.query["hub.mode"] as string | undefined;
     const token = req.query["hub.verify_token"] as string | undefined;
     const challenge = req.query["hub.challenge"] as string | undefined;
@@ -67,12 +64,24 @@ export const receiveMessage = async (req: Request, res: Response) => {
 
     // ✅ STATUS UPDATE (DELIVERED / READ)
     if (value?.statuses) {
-      const status = value.statuses[0];
+      const statusObj = value.statuses[0];
 
-      await Message.updateOne(
-        { wa_message_id: status.id },
-        { status: status.status.toUpperCase() },
-      );
+      const updateData: any = {
+        status: statusObj.status.toUpperCase(), // SENT / DELIVERED / READ / FAILED
+      };
+
+      // ✅ FAILED CASE
+      if (statusObj.status === "failed") {
+        const error = statusObj.errors?.[0];
+
+        updateData.error = {
+          code: error?.code,
+          message: error?.message,
+          details: error?.error_data?.details,
+        };
+      }
+
+      await Message.updateOne({ wa_message_id: statusObj.id }, updateData);
 
       return res.sendStatus(200);
     }
