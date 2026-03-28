@@ -13,18 +13,19 @@ import messageRoutes from "./routes/message.route";
 import contactAttributeRoutes from "./routes/contactAttribute.route";
 import templatesRoutes from "./routes/template.routes";
 
-
 import { connectMongo } from "./database/mongodb"; // ✅ CHANGE: Mongo connect
 import cors from "cors";
 dotenv.config({ path: path.join(".env") });
 
 const app = express();
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: false
-}));
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: false,
+  }),
+);
 const PORT = Number(process.env.PORT) || 5005;
 
 /* =========================
@@ -53,17 +54,30 @@ app.use(
 ========================= */
 let isDbConnected = false;
 
-app.use(async (_req, res, next) => {
+app.use(async (req, res, next) => {
   try {
+    // 🔥 Skip preflight request
+    if (req.method === "OPTIONS") {
+      return next();
+    }
+
     if (!isDbConnected) {
       await connectMongo();
       isDbConnected = true;
     }
+
     next();
   } catch (err) {
     console.error("❌ Mongo connection failed", err);
     res.status(500).json({ error: "Database connection failed" });
   }
+});
+
+app.options("*", (req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  return res.sendStatus(200);
 });
 
 /* =========================
