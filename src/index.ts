@@ -24,13 +24,7 @@ const app = express();
 /* =========================
 🔥 CORS FIX (STRONG)
 ========================= */
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use(cors());
 
 
 /* =========================

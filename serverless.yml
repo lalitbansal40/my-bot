@@ -1,10 +1,27 @@
 service: chatvexa-backend
 
+frameworkVersion: "4"
+
 provider:
   name: aws
   runtime: nodejs18.x
-  stage: prod
   region: ap-south-1
+  stage: ${opt:stage, 'dev'}
+
+  httpApi:
+    cors:
+      allowedOrigins:
+        - "*"
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+
   environment:
     GOOGLE_CLIENT_EMAIL: cake-arena@delivery-project-481106.iam.gserviceaccount.com
     GOOGLE_MAPS_KEY: AIzaSyA4dao39ydwVuDPKAY4fCdB-wodNQ4qou4
@@ -23,15 +40,13 @@ provider:
 
 functions:
   api:
-    handler: ./src/index.handler
-    timeout: 60
+    handler: src/index.handler
     memorySize: 1024
+    timeout: 60
     events:
-      - http:
-          path: /
-          method: ANY
-          cors: true
-      - http:
+      - httpApi:
           path: /{proxy+}
           method: ANY
-          cors: true
+
+plugins:
+  - serverless-offline
