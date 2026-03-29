@@ -14,20 +14,6 @@ import { uploadToS3 } from "../services/s3.service";
 import axios from "axios";
 dotenv.config({ path: path.join(".env") });
 
-const SHEET_ID = "1xlAP136l66VtTjoMkdTEueo-FXKD7_L1RJUlaxefXzI";
-const REFERENCE_COORDS = {
-  lat: 26.838606673565817,
-  lng: 75.82641420437723,
-};
-
-const INTERNAL_NOTIFY_NUMBERS = ["919664114023", "917413048269"];
-/* =====================================================
-   SHOP CONSTANTS (FIXED)
-===================================================== */
-const SHOP_ADDRESS =
-  "Shiv Bhole Bakers, vivek vihar mod, jagatpura, Jaipur, Rajasthan, India";
-const SHOP_PHONE = "9664114023";
-
 export const verifyWebhook = async (
   req: Request,
   res: Response,

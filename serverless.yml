@@ -1,42 +1,25 @@
-service: chatvexa
-
-frameworkVersion: "4"
+service: chatvexa-backend
 
 provider:
-name: aws
-runtime: nodejs18.x
-region: ap-south-1
-stage: ${opt:stage, 'dev'}
-timeout: 30
-
-deploymentBucket:
-name: my-bot-serverless-deploy-302767540275
-blockPublicAccess: true
-
-httpApi:
-cors:
-allowedOrigins:
-- "*"
-allowedHeaders:
-- Content-Type
-- Authorization
-allowedMethods:
-- GET
-- POST
-- PUT
-- DELETE
-- OPTIONS
-allowCredentials: false
+  name: aws
+  runtime: nodejs18.x
+  stage: prod
+  region: ap-south-1
+  deploymentBucket:
+    name: my-bot-serverless-deploy-302767540275
+    blockPublicAccess: true
 
 functions:
-api:
-name: chatvexa-api
-handler: src/index.handler
-events:
-- httpApi:
-path: /{proxy+}
-method: ANY
-
-plugins:
-
-* serverless-offline
+  api:
+    handler: ./src/index.handler
+    timeout: 30
+    memorySize: 300
+    events:
+      - http:
+          path: /
+          method: ANY
+          cors: true
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
