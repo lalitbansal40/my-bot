@@ -32,8 +32,6 @@ app.use(
   })
 );
 
-// 🔥 Preflight fix (IMPORTANT)
-app.options("*", cors());
 
 /* =========================
 🔹 RAW BODY

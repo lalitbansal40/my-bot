@@ -23,7 +23,7 @@ router.post(
   "/send-media",
   authMiddleware,
   subscriptionGuard,
-  upload.array("files", 10), // max 10 files
+  upload.array("files", 3), // max 10 files
   sendMediaMessage,
 );
 

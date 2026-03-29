@@ -1,9 +1,6 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Contact from "../models/contact.model";
-import csv from "csv-parser";
-import fs from "fs";
-import xlsx from "xlsx";
 import { Parser } from "json2csv";
 import { parseFile } from "../utils/fileImport";
 
@@ -248,22 +245,17 @@ export const importContacts = async (req: any, res: any) => {
     }
 
     // 🔥 handle both cases (disk + memory)
-    let filePath = req.file.path;
+    let rows: any[] = [];
 
-    if (!filePath && req.file.buffer) {
-      const tempPath = `uploads/${Date.now()}-${req.file.originalname}`;
-      fs.writeFileSync(tempPath, req.file.buffer);
-      filePath = tempPath;
-    }
-
-    if (!filePath) {
+    if (req.file.buffer) {
+    } else if (req.file.path) {
+      rows = await parseFile(req.file.path, req.file.originalname);
+    } else {
       return res.status(400).json({
         success: false,
-        message: "File path not found",
+        message: "File not found",
       });
     }
-
-    const rows = await parseFile(filePath, req.file.originalname);
 
     const seen = new Set();
     let success = 0;
@@ -309,8 +301,6 @@ export const importContacts = async (req: any, res: any) => {
       .filter((op): op is any => op !== null); // 🔥 THIS FIX
 
     await Contact.bulkWrite(operations);
-
-    fs.unlinkSync(req.file.path);
 
     return res.json({
       success: true,

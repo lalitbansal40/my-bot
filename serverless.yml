@@ -12,8 +12,8 @@ provider:
 functions:
   api:
     handler: ./src/index.handler
-    timeout: 30
-    memorySize: 300
+    timeout: 60
+    memorySize: 1024
     events:
       - http:
           path: /

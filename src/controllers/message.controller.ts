@@ -173,7 +173,11 @@ export const markMessagesAsRead = async (req: Request, res: Response) => {
 export const sendMediaMessage = async (req: Request, res: Response) => {
   try {
     const { channelId, contactId, caption } = req.body;
-    const files = req.files as Express.Multer.File[];
+    const files = (req.files as Express.Multer.File[]) || [];
+
+    if (!files.length) {
+      return res.status(400).json({ message: "Files required" });
+    }
 
     if (!files || files.length === 0) {
       return res.status(400).json({ message: "Files required" });
