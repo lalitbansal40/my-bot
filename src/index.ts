@@ -14,7 +14,6 @@ import templatesRoutes from "./routes/template.routes";
 
 import { connectMongo } from "./database/mongodb";
 import cors from "cors";
-
 if (!process.env.LAMBDA_TASK_ROOT) {
   dotenv.config();
 }
@@ -26,7 +25,6 @@ const app = express();
 ========================= */
 app.use(cors());
 
-
 /* =========================
 🔹 RAW BODY
 ========================= */
@@ -36,13 +34,13 @@ app.use(
       req: Request & { rawBody?: string },
       _res: Response,
       buf: Buffer,
-      encoding: BufferEncoding
+      encoding: BufferEncoding,
     ) => {
       if (buf) {
         req.rawBody = buf.toString(encoding || "utf8");
       }
     },
-  })
+  }),
 );
 
 /* =========================
@@ -93,15 +91,12 @@ app.get("/", (_req: Request, res: Response) => {
 const isLambda = Boolean(process.env.LAMBDA_TASK_ROOT);
 
 if (!isLambda) {
-  connectMongo()
-    .then(() => console.log("✅ MongoDB connected (local)"))
-    .catch(console.error);
-
+  connectMongo();
+  console.log("✅ MongoDB connected (local)");
   app.listen(5005, () => {
     console.log("✅ Server running on http://localhost:5005");
   });
 }
-
 /* =========================
 🔹 LAMBDA HANDLER
 ========================= */

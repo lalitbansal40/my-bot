@@ -9,6 +9,7 @@ export const getContactsByChannel = async (req: Request, res: Response) => {
     const { channelId } = req.params;
     const { search, cursor, limit = 20 } = req.query;
 
+    // ✅ VALIDATION
     if (!channelId || !mongoose.Types.ObjectId.isValid(channelId as string)) {
       return res.status(400).json({
         success: false,
@@ -16,37 +17,85 @@ export const getContactsByChannel = async (req: Request, res: Response) => {
       });
     }
 
+    const parsedLimit = Number(limit) || 20;
+
+    // ✅ BASE QUERY (🔥 removed last_message_at filter)
     const query: any = {
       channel_id: new mongoose.Types.ObjectId(channelId as string),
     };
 
-    // 🔍 Search by name or phone
+    // 🔍 SEARCH
     if (search) {
-      query.$or = [
-        { phone: { $regex: search, $options: "i" } },
-        { name: { $regex: search, $options: "i" } },
+      query.$and = [
+        {
+          $or: [
+            { phone: { $regex: search, $options: "i" } },
+            { name: { $regex: search, $options: "i" } },
+          ],
+        },
       ];
     }
 
-    // ⬇ Cursor based pagination (load older contacts)
+    // 🔥 CURSOR BASED PAGINATION
     if (cursor) {
-      query.last_message_at = {
-        $lt: new Date(cursor as string),
-      };
+      const parsedCursor =
+        typeof cursor === "string" ? JSON.parse(cursor) : cursor;
+
+      const cursorDate = parsedCursor.last_message_at
+        ? new Date(parsedCursor.last_message_at)
+        : null;
+
+      const cursorId = new mongoose.Types.ObjectId(parsedCursor._id);
+
+      query.$and = [
+        ...(query.$and || []),
+        {
+          $or: [
+            // 🔥 normal pagination (with date)
+            ...(cursorDate
+              ? [
+                  { last_message_at: { $lt: cursorDate } },
+                  {
+                    last_message_at: cursorDate,
+                    _id: { $lt: cursorId },
+                  },
+                ]
+              : []),
+
+            // 🔥 fallback (for null dates)
+            {
+              last_message_at: null,
+              _id: { $lt: cursorId },
+            },
+          ],
+        },
+      ];
     }
 
+    // 🔥 FETCH DATA
     const contacts = await Contact.find(query)
-      .sort({ last_message_at: -1 }) // newest chat first
-      .limit(Number(limit))
-      .populate("last_message_id"); // optional
+      .sort({
+        last_message_at: -1, // latest first
+        _id: -1, // stable sort
+      })
+      .limit(parsedLimit)
+      .populate("last_message_id");
+
+    // 🔥 NEXT CURSOR
+    const lastItem = contacts[contacts.length - 1];
+
+    const nextCursor =
+      contacts.length === parsedLimit && lastItem
+        ? JSON.stringify({
+            last_message_at: lastItem.last_message_at || null,
+            _id: lastItem._id,
+          })
+        : null;
 
     return res.status(200).json({
       success: true,
       count: contacts.length,
-      nextCursor:
-        contacts.length > 0
-          ? contacts[contacts.length - 1].last_message_at
-          : null,
+      nextCursor,
       data: contacts,
     });
   } catch (error: any) {
@@ -131,46 +180,70 @@ export const updateContact = async (req: Request, res: Response) => {
       });
     }
 
-    const contact = await Contact.findById(contactId);
+    const existingContact = await Contact.findById(contactId);
 
-    if (!contact) {
+    if (!existingContact) {
       return res.status(404).json({
         success: false,
         message: "Contact not found",
       });
     }
 
-    // ✅ Basic fields
-    if (name !== undefined) contact.name = name;
-    if (phone !== undefined) contact.phone = phone;
+    const updateData: any = {};
 
-    // 🔥 Deep merge attributes
-    if (attributes && typeof attributes === "object") {
-      contact.attributes = deepMerge(contact.attributes || {}, attributes);
-
-      // 🔥 THIS IS THE REAL FIX
-      contact.markModified("attributes");
+    // ✅ Name update
+    if (name !== undefined) {
+      updateData.name = name;
     }
 
-    await contact.save();
+    // 🔥 Phone update with duplicate check
+    if (
+      typeof phone === "string" &&
+      phone.trim() &&
+      phone !== existingContact.phone
+    ) {
+      const duplicate = await Contact.findOne({
+        phone,
+        channel_id: existingContact.channel_id,
+        _id: { $ne: contactId },
+      });
+
+      if (duplicate) {
+        return res.status(400).json({
+          success: false,
+          message: "Phone already exists for this channel",
+        });
+      }
+
+      updateData.phone = phone;
+    }
+
+    // 🔥 Attributes merge
+    if (attributes && typeof attributes === "object") {
+      updateData.attributes = deepMerge(
+        existingContact.attributes || {},
+        attributes,
+      );
+    }
+
+    // 🔥 Update
+    const updatedContact = await Contact.findOneAndUpdate(
+      { _id: contactId },
+      { $set: updateData },
+      { new: true }, // return updated doc
+    );
 
     return res.status(200).json({
       success: true,
       message: "Contact updated successfully",
-      data: contact,
+      data: updatedContact,
     });
   } catch (error: any) {
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: "Phone already exists for this channel",
-      });
-    }
+    console.error("Update Contact Error:", error);
 
     return res.status(500).json({
       success: false,
       message: "Internal server error",
-      error: error.message,
     });
   }
 };

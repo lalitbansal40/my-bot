@@ -9,6 +9,7 @@ const templateSchema = new mongoose.Schema(
     // 🔥 important fields
     header_format: { type: String }, // IMAGE | VIDEO | DOCUMENT | TEXT
     media_url: { type: String }, // S3 URL
+    media_handle: String,
 
     // optional (future use)
     media_id: { type: String }, // for faster sending (optional)

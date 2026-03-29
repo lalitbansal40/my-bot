@@ -4,9 +4,11 @@ import {
   deleteTemplate,
   getTemplateById,
   getTemplates,
+  sendBulkTemplate,
   sendTemplate,
   updateTemplate,
   uploadMediaController,
+  syncTemplates, // 🔥 ADD THIS
 } from "../controllers/template.controller";
 
 import { authMiddleware } from "../middlewares/auth.middleware";
@@ -19,6 +21,11 @@ const router = Router();
  * 🔐 Apply middlewares globally (BEST PRACTICE)
  */
 router.use(authMiddleware, subscriptionGuard);
+
+/**
+ * 🔥 SYNC TEMPLATES (IMPORTANT - keep above dynamic routes)
+ */
+router.post("/sync/:channelId", syncTemplates);
 
 /**
  * 📁 MEDIA UPLOAD
@@ -41,7 +48,16 @@ router.get("/:channelId/:templateId", getTemplateById);
 
 // ✅ Create template
 router.post("/:channelId", createTemplate);
+
+// ✅ Send template
 router.post("/send-template/:channelId", sendTemplate);
+
+// ✅ Bulk send template
+router.post(
+  "/send-bulk/:channelId",
+  upload.single("file"),
+  sendBulkTemplate
+);
 
 // ✅ Update template (recreate)
 router.put("/:channelId/:templateId", updateTemplate);

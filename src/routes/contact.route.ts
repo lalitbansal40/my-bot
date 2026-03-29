@@ -8,12 +8,13 @@ import {
   updateContact,
 } from "../controllers/contact.controller";
 import { authMiddleware } from "../middlewares/auth.middleware";
-import { upload } from "../middlewares/upload.middleware";
 import { contactUpload } from "../utils/fileImport";
 
 const router = express.Router();
 
-// 🔽 Import contacts (CSV upload)
+// ================= 🔥 IMPORT / EXPORT =================
+
+// Import contacts (CSV upload)
 router.post(
   "/import/:channelId",
   authMiddleware,
@@ -21,17 +22,43 @@ router.post(
   importContacts
 );
 
-// 🔽 Export contacts (CSV download)
+// Export contacts (CSV download)
 router.get(
   "/export/:channelId",
   authMiddleware,
   exportContacts
 );
 
-// 🔽 CRUD
-router.get("/:channelId", authMiddleware, getContactsByChannel);
-router.post("/:channelId", authMiddleware, createContact);
-router.patch("/:contactId", authMiddleware, updateContact);
-router.get("/details/:contactId", authMiddleware, getContactById);
+// ================= 🔥 SPECIFIC ROUTES =================
+
+// Get contact by ID (⚠️ must be above /:channelId)
+router.get(
+  "/details/:contactId",
+  authMiddleware,
+  getContactById
+);
+
+// Update contact
+router.patch(
+  "/:contactId",
+  authMiddleware,
+  updateContact
+);
+
+// ================= 🔥 GENERIC ROUTES =================
+
+// Get contacts by channel (⚠️ keep this last)
+router.get(
+  "/:channelId",
+  authMiddleware,
+  getContactsByChannel
+);
+
+// Create contact
+router.post(
+  "/:channelId",
+  authMiddleware,
+  createContact
+);
 
 export default router;
