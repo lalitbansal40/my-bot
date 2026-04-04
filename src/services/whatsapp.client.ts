@@ -21,7 +21,29 @@ export interface WhatsAppClient {
       data?: Record<string, any>; // 👈 dynamic data
     },
   ): Promise<void>;
-
+  sendInteractiveMedia(
+    to: string,
+    payload: {
+      type: "image" | "video";
+      url: string;
+      caption: string;
+      buttons: { id: string; title: string }[];
+    },
+  ): Promise<void>;
+  sendCarousel(
+    to: string,
+    data: {
+      header?: string;
+      body: string;
+      items: {
+        id: string;
+        title: string;
+        description?: string;
+        image?: string;
+      }[];
+    },
+  ): Promise<void>;
+  sendAddressMessage(to: string, text: string): Promise<void>;
   // ✅ ADD THIS
   sendButtons(
     to: string,
@@ -184,6 +206,144 @@ export const createWhatsAppClient = (
         logError("requestLocation", e);
       }
     },
+    async sendCarousel(to, data) {
+      const msg = await Message.create({
+        channel_id: channel._id,
+        contact_id: contact._id,
+        direction: "OUT",
+        type: "carousel",
+        status: "PENDING",
+        payload: data,
+        is_read: true,
+      });
+
+      try {
+        // 🔥 TRY REAL MEDIA CAROUSEL FIRST
+        const res = await api.post("/messages", {
+          messaging_product: "whatsapp",
+          to,
+          type: "interactive",
+          interactive: {
+            type: "media_carousel",
+            body: {
+              text: data.body,
+            },
+            action: {
+              cards: data.items.map((item) => ({
+                header: {
+                  type: "image",
+                  image: {
+                    link: item.image || "https://via.placeholder.com/300",
+                  },
+                },
+                body: {
+                  text: item.title,
+                },
+                buttons: [
+                  {
+                    type: "reply",
+                    reply: {
+                      id: item.id,
+                      title: (item.title || "Select").substring(0, 20),
+                    },
+                  },
+                ],
+              })),
+            },
+          },
+        });
+
+        const waId = res.data?.messages?.[0]?.id;
+
+        await Message.updateOne(
+          { _id: msg._id },
+          {
+            status: "SENT",
+            wa_message_id: waId,
+          },
+        );
+
+        await Contact.updateOne(
+          { _id: contact._id },
+          {
+            $set: {
+              last_message_id: msg._id,
+              last_message_at: new Date(),
+            },
+          },
+        );
+      } catch (e: any) {
+        console.warn("⚠️ Media carousel failed, fallback to list");
+
+        try {
+          // 🔁 FALLBACK TO LIST (OLD LOGIC)
+          const res = await api.post("/messages", {
+            messaging_product: "whatsapp",
+            to,
+            type: "interactive",
+            interactive: {
+              type: "list",
+              header: data.header
+                ? {
+                    type: "text",
+                    text: data.header,
+                  }
+                : undefined,
+              body: {
+                text: data.body,
+              },
+              action: {
+                button: "Select Option",
+                sections: [
+                  {
+                    title: "Available Options",
+                    rows: data.items.map((item) => ({
+                      id: String(item.id),
+                      title: item.title.substring(0, 24),
+                      description: item.description?.substring(0, 72),
+                    })),
+                  },
+                ],
+              },
+            },
+          });
+
+          const waId = res.data?.messages?.[0]?.id;
+
+          await Message.updateOne(
+            { _id: msg._id },
+            {
+              status: "SENT",
+              wa_message_id: waId,
+            },
+          );
+
+          await Contact.updateOne(
+            { _id: contact._id },
+            {
+              $set: {
+                last_message_id: msg._id,
+                last_message_at: new Date(),
+              },
+            },
+          );
+        } catch (fallbackError: any) {
+          await Message.updateOne(
+            { _id: msg._id },
+            {
+              status: "FAILED",
+              error: JSON.stringify(
+                fallbackError?.response?.data ||
+                  fallbackError?.message ||
+                  "Unknown error",
+              ),
+            },
+          );
+
+          logError("sendCarousel fallback", fallbackError);
+        }
+      }
+    },
 
     async sendFlow(
       to: string,
@@ -282,6 +442,85 @@ export const createWhatsAppClient = (
         logError("sendFlow", e);
       }
     },
+    async sendInteractiveMedia(to: string, payload: any) {
+      const msg = await Message.create({
+        channel_id: channel._id,
+        contact_id: contact._id,
+        direction: "OUT",
+        type: "interactive_media",
+        status: "PENDING",
+        payload,
+        is_read: true,
+      });
+
+      try {
+        const res = await api.post("/messages", {
+          messaging_product: "whatsapp",
+          to,
+          type: "interactive",
+          interactive: {
+            type: "button",
+
+            // 🔥 THIS IS THE MAIN FIX
+            header: {
+              type: payload.type,
+              [payload.type]: {
+                link: payload.url,
+              },
+            },
+
+            body: {
+              text: payload.caption || "Choose option",
+            },
+
+            action: {
+              buttons: payload.buttons.slice(0, 3).map((btn: any) => ({
+                type: "reply",
+                reply: {
+                  id: String(btn.id),
+                  title: btn.title.substring(0, 20),
+                },
+              })),
+            },
+          },
+        });
+
+        const waId = res.data?.messages?.[0]?.id;
+
+        await Message.updateOne(
+          { _id: msg._id },
+          {
+            status: "SENT",
+            wa_message_id: waId,
+          },
+        );
+
+        await Contact.updateOne(
+          { _id: contact._id },
+          {
+            $set: {
+              last_message_id: msg._id,
+              last_message_at: new Date(),
+            },
+          },
+        );
+      } catch (e: any) {
+        await Message.updateOne(
+          { _id: msg._id },
+          {
+            status: "FAILED",
+            error: JSON.stringify(
+              e?.response?.data || e?.message || "Unknown error",
+            ),
+          },
+        );
+
+        console.error(
+          "❌ sendInteractiveMedia",
+          e?.response?.data || e.message,
+        );
+      }
+    },
 
     async sendButtons(to, bodyText, buttons) {
       // 1️⃣ SAVE MESSAGE
@@ -351,6 +590,47 @@ export const createWhatsAppClient = (
         );
 
         logError("sendButtons", e);
+      }
+    },
+    async sendAddressMessage(to: string, text: string) {
+      try {
+        const res = await axios.post(
+          `https://graph.facebook.com/v19.0/${channel.phone_number_id}/messages`,
+          {
+            messaging_product: "whatsapp",
+            to,
+            type: "interactive",
+            interactive: {
+              type: "address_message",
+
+              body: {
+                text: text || "📍 Please enter your delivery address",
+              },
+
+              action: {
+                name: "address_message",
+
+                // 🔥 MINIMUM REQUIRED PARAM
+                parameters: {
+                  country: "IN", // ⚠️ MUST for India
+                },
+              },
+            },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${channel.access_token}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        console.log("✅ Address message sent:", res.data);
+      } catch (err: any) {
+        console.error(
+          "❌ Address message error:",
+          err?.response?.data || err.message,
+        );
       }
     },
 

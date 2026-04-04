@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import path from "path";
 import { Channel } from "../models/channel.model";
 import Automation from "../models/automation.model";
-import AutomationSession from "../models/automationSession.model";
 import { createWhatsAppClient } from "../services/whatsapp.client";
 import { runAutomation } from "../engine/automationExecuter";
 import Contact from "../models/contact.model";
@@ -29,6 +28,7 @@ export const verifyWebhook = async (
       token === process.env.WHATSAPP_VERIFY_TOKEN &&
       challenge
     ) {
+      console.log("Webhook verified successfully");
       return res.status(200).set("Content-Type", "text/plain").send(challenge);
     }
 
@@ -82,14 +82,14 @@ export const receiveMessage = async (req: Request, res: Response) => {
       phone_number_id: phoneNumberId,
       is_active: true,
     });
-    if (!channel) return res.sendStatus(200);
+    console.log(
+      "Channel found:",
+      !!channel,
+      "for phone_number_id:",
+      phoneNumberId,
+    );
 
-    const automation = await Automation.findOne({
-      channel_id: channel._id,
-      trigger: "new_message_received",
-      status: "active",
-    });
-    if (!automation) return res.sendStatus(200);
+    if (!channel) return res.sendStatus(200);
 
     // 👤 CONTACT UPSERT
     const contact = await Contact.findOneAndUpdate(
@@ -114,6 +114,46 @@ export const receiveMessage = async (req: Request, res: Response) => {
     // TEXT
     if (message.type === "text") {
       text = message.text?.body || null;
+    } else if (message.type === "interactive") {
+      text = message.interactive?.button_reply?.title || "interactive";
+
+      // 🔥 IMPORTANT (flow / address capture)
+      if (message.interactive?.nfm_reply?.response_json) {
+        try {
+          const parsed = JSON.parse(
+            message.interactive.nfm_reply.response_json,
+          );
+
+          // 🔥 SAVE DIRECTLY IN CONTACT
+          await Contact.updateOne(
+            { _id: contact._id },
+            {
+              $set: {
+                "attributes.address": {
+                  text:
+                    parsed?.formatted_address ||
+                    parsed?.address ||
+                    parsed?.full_address ||
+                    "",
+                  latitude: parsed?.latitude,
+                  longitude: parsed?.longitude,
+                },
+                "attributes.addressData": {
+                  text:
+                    parsed?.formatted_address ||
+                    parsed?.address ||
+                    parsed?.full_address ||
+                    "",
+                  latitude: parsed?.latitude,
+                  longitude: parsed?.longitude,
+                },
+              },
+            },
+          );
+        } catch (e) {
+          console.error("❌ flow parse error", e);
+        }
+      }
     }
 
     // MEDIA TYPES
@@ -228,32 +268,48 @@ export const receiveMessage = async (req: Request, res: Response) => {
       },
     );
 
-    // 🧠 AUTOMATION SESSION
-    let session = await AutomationSession.findOne({
-      phone: from,
-      automation_id: automation._id,
+    const automation = await Automation.findOne({
+      channel_id: channel._id,
+      trigger: "new_message_received",
+      status: "active",
     });
+    if (!automation) return res.sendStatus(200);
 
-    if (!session) {
-      session = await AutomationSession.create({
-        phone: from,
-        automation_id: automation._id,
-        channel_id: channel._id,
-        contact_id: contact._id,
-        current_node: "start",
-        waiting_for: null,
-        data: {},
-        status: "active",
-      });
-    }
-
+    // 🧠 AUTOMATION SESSION
+    const session = {
+      contact_id: contact._id,
+      current_node: contact.attributes?.current_node || "start",
+      waiting_for: contact.attributes?.waiting_for || null,
+      data: contact.attributes || {},
+    };
     const whatsapp = createWhatsAppClient(channel, contact);
 
-    sendTypingIndicator(
+    await sendTypingIndicator(
       channel.phone_number_id,
       channel.access_token,
       message.id,
     );
+
+    // ✅ PRODUCT TRACKING
+    if (message.interactive?.button_reply?.id) {
+      const btnId = message.interactive.button_reply.id;
+
+      await Contact.updateOne(
+        { _id: contact._id },
+        {
+          $set: {
+            "attributes.product_id": btnId,
+          },
+        },
+      );
+    }
+
+    // ✅ AUTO RESET AFTER ORDER COMPLETE
+    if (contact.attributes?.current_node === "done") {
+      session.current_node = "start";
+      session.waiting_for = null;
+      session.data = {};
+    }
 
     await runAutomation({
       automation,
@@ -261,8 +317,34 @@ export const receiveMessage = async (req: Request, res: Response) => {
       message,
       whatsapp,
       updateSession: async (updates) => {
-        Object.assign(session, updates);
-        await session.save();
+        const freshContact = await Contact.findById(contact._id).lean();
+
+        const updatedAttributes = {
+          ...freshContact?.attributes,
+
+          ...(updates.data || {}),
+
+          current_node:
+            updates.current_node !== undefined
+              ? updates.current_node
+              : freshContact?.attributes?.current_node,
+
+          waiting_for:
+            updates.waiting_for !== undefined
+              ? updates.waiting_for
+              : freshContact?.attributes?.waiting_for,
+        };
+
+        await Contact.updateOne(
+          { _id: contact._id },
+          {
+            $set: { attributes: updatedAttributes },
+          },
+        );
+
+        session.current_node = updatedAttributes.current_node;
+        session.waiting_for = updatedAttributes.waiting_for;
+        session.data = updatedAttributes;
       },
     });
 

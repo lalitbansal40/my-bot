@@ -86,7 +86,7 @@ export const sendTypingIndicator = async (
   accessToken: string,
   messageId: string
 ) => {
-  await axios.post(
+    await axios.post(
     `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
     {
       messaging_product: "whatsapp",

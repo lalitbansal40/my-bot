@@ -15,7 +15,10 @@ export type AutomationNodeType =
   | "google_sheet"
   | "razorpay_payment"
   | "borzo_delivery"
-  | "razorpay_payment"   // ✅ ADD
+  | "razorpay_payment"
+  | "ask_input"
+  | "carousel"
+  | "address_message"
   | "payment_summary";
 
 /* ---------- NODE ---------- */
@@ -37,6 +40,11 @@ export interface AutomationNode {
     title: string;
   }[];
 
+  media?: {
+    type?: "image" | "video";
+    url: string;
+  };
+
   save_to?: string;
   validation?: "email" | "phone" | "text";
 
@@ -44,6 +52,12 @@ export interface AutomationNode {
      FLOW NODE
   ========================= */
   flow_id?: string;
+  items?: {
+    id: string;
+    title: string;
+    description?: string;
+  }[];
+
   header?: string;
   body?: string;
   cta?: string;
@@ -80,19 +94,19 @@ export interface AutomationNode {
      BORZO DELIVERY NODE
   ========================= */
   borzo_action?:
-  | "calculate"
-  | "create"
-  | "update"
-  | "cancel"
-  | "track"
-  | "get_order";
+    | "calculate"
+    | "create"
+    | "update"
+    | "cancel"
+    | "track"
+    | "get_order";
 
   vehicle_type_id?: number;
 
   pickup?: {
-    address?: string;     // {{address}}
-    latitude?: string;    // {{addressData.latitude}}
-    longitude?: string;   // {{addressData.longitude}}
+    address?: string; // {{address}}
+    latitude?: string; // {{addressData.latitude}}
+    longitude?: string; // {{addressData.longitude}}
   };
 
   drop?: {
@@ -108,8 +122,6 @@ export interface AutomationNode {
   ========================= */
   config?: Record<string, any>; // shiprocket, webhook, email, sms, etc.
 }
-
-
 
 /* ---------- EDGE ---------- */
 export interface AutomationEdge {
@@ -135,7 +147,7 @@ export interface AutomationDocument extends Document {
 
   createdAt: Date;
   updatedAt: Date;
-  keywords: string[]
+  keywords: string[];
 }
 
 /* =========================
@@ -160,6 +172,7 @@ const AutomationNodeSchema = new Schema<AutomationNode>(
         "google_sheet",
         "razorpay_payment",
         "borzo_delivery",
+        "carousel",
       ],
       required: true,
     },
@@ -181,6 +194,16 @@ const AutomationNodeSchema = new Schema<AutomationNode>(
     validation: {
       type: String,
       enum: ["email", "phone", "text"],
+    },
+    media: {
+      type: {
+        type: String,
+        enum: ["image", "video"],
+        default: "image",
+      },
+      url: {
+        type: String,
+      },
     },
 
     /* ===== FLOW ===== */
@@ -226,13 +249,23 @@ const AutomationNodeSchema = new Schema<AutomationNode>(
     amount: String,
     currency: String,
     receipt: String,
+    items: {
+      type: [
+        {
+          id: { type: String },
+          title: { type: String },
+          description: { type: String },
+          image: { type: String },
+        },
+      ],
+      default: undefined, // 🔥 IMPORTANT
+    },
 
     /* ===== FUTURE ===== */
     config: Schema.Types.Mixed,
   },
-  { _id: false }
+  { _id: false },
 );
-
 
 /* ---------- EDGE SCHEMA ---------- */
 const AutomationEdgeSchema = new Schema<AutomationEdge>(
@@ -241,7 +274,7 @@ const AutomationEdgeSchema = new Schema<AutomationEdge>(
     to: { type: String, required: true },
     condition: { type: String }, // 🔥 button id / condition
   },
-  { _id: false }
+  { _id: false },
 );
 
 /* ---------- AUTOMATION SCHEMA ---------- */
@@ -300,11 +333,10 @@ const AutomationSchema = new Schema<AutomationDocument>(
       required: true,
       index: true,
     },
-
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Fast lookup for active automation per channel

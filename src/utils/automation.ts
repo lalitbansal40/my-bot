@@ -15,21 +15,24 @@ export interface AutomationEdge {
 ========================= */
 
 export const getNextNodeByCondition = (
-  edges: AutomationEdge[],
-  from: string,
-  condition: string
-): string | undefined => {
-  const edge = edges.find(
-    (e) => e.from === from && e.condition === condition
+  edges: any[],
+  currentNode: string,
+  condition: string,
+) => {
+  const matched = edges.find(
+    (edge) =>
+      edge.from === currentNode &&
+      String(edge.condition).trim() === String(condition).trim(),
   );
 
-  return edge?.to;
-};
+  console.log("👉 MATCHED EDGE:", matched);
 
+  return matched?.to || null;
+};
 
 export const doesTriggerMatch = (
   text: string | undefined,
-  triggerNode: { keywords?: string[] }
+  triggerNode: { keywords?: string[] },
 ): boolean => {
   if (!text) return false;
 
@@ -38,7 +41,7 @@ export const doesTriggerMatch = (
     return true;
   }
 
-  return triggerNode.keywords.some(keyword =>
-    text.toLowerCase().includes(keyword.toLowerCase())
+  return triggerNode.keywords.some((keyword) =>
+    text.toLowerCase().includes(keyword.toLowerCase()),
   );
 };

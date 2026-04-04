@@ -15,18 +15,36 @@ import { buildBorzoPayload } from "../utils/borzopayload";
 import { BorzoApiClient } from "../services/borzo.service";
 import { RazorpayService } from "../services/razorpay.service";
 
+const getFreshSession = async (contactId: string) => {
+  const freshContact = await Contact.findById(contactId).lean();
+
+  return {
+    contact_id: contactId,
+    current_node: freshContact?.attributes?.current_node,
+    waiting_for: freshContact?.attributes?.waiting_for,
+    data: freshContact?.attributes || {},
+  };
+};
+
 /* =========================
    CONTEXT TYPE
 ========================= */
 interface Context {
   node: AutomationNode;
   automation: AutomationDocument;
-  session: AutomationSessionDocument; // ✅ ADD THIS
+  session: any; // ✅ ADD THIS
   message: IncomingMessage;
   whatsapp: WhatsAppClient;
   updateSession: (data: {
     current_node?: string;
-    waiting_for?: "button" | "location" | null | "flow";
+    waiting_for?:
+      | "input"
+      | "button"
+      | "location"
+      | "flow"
+      | "carousel"
+      | "address_message"
+      | null;
     data?: Record<string, any>;
   }) => Promise<void>;
 }
@@ -44,26 +62,21 @@ export const executeNode = async ({
 }: Context): Promise<void> => {
   const from = message.from;
 
-  /* ===============================
-     MOVE TO NEXT NODE
-  =============================== */
-  const moveNext = async () => {
-    const nextNodeId = getNextNodeId(automation.edges, node.id);
-    if (!nextNodeId) return;
-
+  const goToNode = async (nextNodeId: string) => {
     await updateSession({
       current_node: nextNodeId,
       waiting_for: null,
     });
 
     const nextNode = automation.nodes.find((n) => n.id === nextNodeId);
-
     if (!nextNode) return;
+
+    const freshSession = await getFreshSession(session.contact_id);
 
     return executeNode({
       node: nextNode,
       automation,
-      session,
+      session: freshSession,
       message,
       whatsapp,
       updateSession,
@@ -71,38 +84,102 @@ export const executeNode = async ({
   };
 
   /* ===============================
+     MOVE TO NEXT NODE
+  =============================== */
+  const moveNext = async () => {
+    const nextNodeId = getNextNodeId(automation.edges, node.id);
+    if (!nextNodeId) return;
+
+    return goToNode(nextNodeId);
+  };
+
+  console.log(
+    `Executing node ${node.id} of type ${node.type} for contact ${session.contact_id}`,
+  );
+  /* ===============================
      NODE TYPE HANDLING
   =============================== */
   switch (node.type) {
     case "auto_reply": {
-      let text = node.message || "";
+      // =========================
+      // 🔥 GENERIC BUTTON DATA SAVE (NO HARDCODE)
+      // =========================
+      if (message.interactive?.button_reply?.id) {
+        const btnId = message.interactive.button_reply.id;
+        const btnTitle = message.interactive.button_reply.title;
 
-      // ✅ interpolate variables first
-      text = interpolate(text, session.data);
-
-      if (
-        node.id === "confirm_address_en" ||
-        node.id === "confirm_address_hi"
-      ) {
-        const mapUrl = session.data?.addressData?.googleMapsUrl;
-        if (mapUrl) {
-          text += `\n\n🗺️ View on Google Maps:\n${mapUrl}`;
-        }
+        await updateSession({
+          data: {
+            ...session.data,
+            last_button_id: btnId,
+            last_button_title: btnTitle,
+          },
+        });
       }
 
-      if (node.buttons?.length) {
-        // 🔒 prevent duplicate button send
-        if (session.waiting_for === "button") return;
+      // =========================
+      // 🔥 GET CONTACT (FOR {{contact.name}})
+      // =========================
+      const contact = await Contact.findById(session.contact_id).lean();
 
+      // =========================
+      // 🔥 BUILD CONTEXT (POWERFUL)
+      // =========================
+      const context = {
+        ...session.data,
+        contact,
+        ...contact?.attributes, // allows {{address}}, {{order_id}}, etc.
+      };
+
+      // =========================
+      // 🔥 INTERPOLATE MESSAGE
+      // =========================
+      let text = node.message || "";
+      text = interpolate(text, context);
+
+      console.log("node :: ", node);
+
+      // =========================
+      // 🔥 MEDIA + BUTTONS
+      // =========================
+      if (node.media?.url) {
+        console.log("Sending media with URL:", node.media.url);
+
+        await whatsapp.sendInteractiveMedia(from, {
+          type: node.media.type || "image",
+          url: node.media.url,
+          caption: text,
+          buttons: node.buttons || [],
+        });
+
+        if (node.buttons?.length) {
+          await updateSession({
+            current_node: node.id,
+            waiting_for: "button",
+          });
+          return;
+        }
+
+        return moveNext();
+      }
+
+      // =========================
+      // 🔘 BUTTONS ONLY
+      // =========================
+      if (node.buttons?.length) {
         await whatsapp.sendButtons(from, text, node.buttons);
 
         await updateSession({
           current_node: node.id,
           waiting_for: "button",
         });
+
         return;
       }
 
+      // =========================
+      // 📝 TEXT ONLY
+      // =========================
       await whatsapp.sendText(from, text);
       return moveNext();
     }
@@ -199,19 +276,7 @@ export const executeNode = async ({
       const nextNodeId = getNextNodeId(automation.edges, node.id);
       if (!nextNodeId) return;
 
-      await updateSession({
-        current_node: nextNodeId,
-        waiting_for: null, // 🔥 THIS IS THE FIX
-      });
-
-      return executeNode({
-        node: automation.nodes.find((n) => n.id === nextNodeId)!,
-        automation,
-        session,
-        message,
-        whatsapp,
-        updateSession,
-      });
+      return goToNode(nextNodeId);
     }
 
     case "send_flow": {
@@ -246,23 +311,7 @@ export const executeNode = async ({
         const nextNodeId = getNextNodeId(automation.edges, node.id);
         if (!nextNodeId) return;
 
-        await updateSession({
-          current_node: nextNodeId,
-          waiting_for: null,
-        });
-
-        const nextNode = automation.nodes.find((n) => n.id === nextNodeId);
-        if (!nextNode) return;
-
-        // 🚀 AUTO EXECUTE NEXT NODE
-        return executeNode({
-          node: nextNode,
-          automation,
-          session,
-          message,
-          whatsapp,
-          updateSession,
-        });
+        return goToNode(nextNodeId);
       }
 
       /**
@@ -305,65 +354,58 @@ export const executeNode = async ({
         distance <= node.max_distance_km! ? "IN_RANGE" : "OUT_OF_RANGE";
 
       // optional: save distance
-      await updateSession({
-        data: {
-          ...session.data,
-          distance_km: distance.toFixed(2),
-        },
-      });
-
       const nextNodeId = getNextNodeByCondition(
         automation.edges,
         node.id,
         condition,
       );
-
-      if (!nextNodeId) return;
-
-      return executeNode({
-        node: automation.nodes.find((n) => n.id === nextNodeId)!,
-        automation,
-        session,
-        message,
-        whatsapp,
-        updateSession,
-      });
+      return goToNode(nextNodeId as string);
     }
 
     case "google_sheet": {
-      // 1️⃣ ensure integration enabled
       await getIntegration(automation.account_id.toString(), "google_sheet");
 
       if (!node.spreadsheet_id || !node.sheet_name) {
         throw new Error("Google Sheet node not configured");
       }
 
-      // 2️⃣ FETCH CONTACT (🔥 THIS WAS MISSING)
-      const contact = await Contact.findById(session.contact_id).lean();
+      const freshContact = await Contact.findById(session.contact_id).lean();
+      if (!freshContact) throw new Error("Contact not found");
 
-      if (!contact) {
-        throw new Error("Contact not found for Google Sheet node");
+      const sheet = new GoogleSheetService(node.spreadsheet_id);
+      const headers = await sheet.getHeaders(node.sheet_name);
+      if (!session.data.order_id) {
+        const orderId =
+          "ORD-" +
+          Date.now().toString(36) +
+          Math.random().toString(36).substring(2, 6);
+
+        await updateSession({
+          data: {
+            ...session.data,
+            order_id: orderId.toUpperCase(),
+          },
+        });
       }
 
-      // 3️⃣ create service using NODE spreadsheet_id
-      const sheet = new GoogleSheetService(node.spreadsheet_id);
-
-      // 4️⃣ load headers (source of truth)
-      const headers = await sheet.getHeaders(node.sheet_name);
-
-      // 5️⃣ build payload (future-proof)
       const payload = makeGoogleSheetPayload(
         headers,
-        contact,
-        session.data,
-        node.map, // optional override
+        freshContact,
+        {
+          ...freshContact?.attributes,
+          ...session.data,
+        },
+        node.map,
       );
 
-      console.log("GOOGLE SHEET PAYLOAD:", payload);
+      const safePayload = Object.fromEntries(
+        Object.entries(payload).map(([key, value]) => [key, value ?? ""]),
+      );
 
-      // 6️⃣ execute action
+      console.log("🔥 FINAL SHEET PAYLOAD:", safePayload);
+
       if (node.action === "create") {
-        await sheet.create(payload, node.sheet_name);
+        await sheet.create(safePayload, node.sheet_name);
       }
 
       return moveNext();
@@ -537,6 +579,143 @@ export const executeNode = async ({
       );
 
       return moveNext();
+    }
+
+    case "carousel": {
+      console.log("Executing carousel node:", node.id);
+
+      if (session.waiting_for === "carousel") return;
+
+      console.log("👉 node.items:", node.items);
+      console.log("👉 typeof node.items:", typeof node.items);
+
+      // 🔥 FINAL FIX (MONGOOSE SAFE)
+      const items = JSON.parse(JSON.stringify(node?.items ?? []));
+      console.log("CHECK:", Array.isArray(node.items), node.items?.length);
+
+      console.log("🔥 FINAL ITEMS:", items);
+      console.log("🔥 LENGTH:", items.length);
+
+      if (!items || items.length === 0) {
+        console.warn("❌ Carousel has no items AFTER FIX");
+        return;
+      }
+
+      await whatsapp.sendCarousel(from, {
+        header: node.header || undefined,
+        body: node.body || "Please choose",
+        items,
+      });
+
+      await updateSession({
+        current_node: node.id,
+        waiting_for: "carousel",
+        data: {
+          ...session.data,
+          carousel_items: items,
+          carousel_node: node.id,
+        },
+      });
+
+      return;
+    }
+
+    case "ask_input": {
+      let text = node.message || "Enter value";
+
+      await whatsapp.sendText(from, text);
+
+      await updateSession({
+        current_node: node.id,
+        waiting_for: "input",
+        data: {
+          ...session.data,
+          save_key: node.save_to,
+        },
+      });
+
+      return;
+    }
+
+    case "address_message": {
+      // ✅ RESPONSE AAYA (IMPORTANT)
+      if (
+        message.interactive?.type === "nfm_reply" &&
+        message.interactive?.nfm_reply?.response_json
+      ) {
+        let parsed: any = {};
+        console.log(
+          "🔥 RAW ADDRESS RESPONSE:",
+          JSON.stringify(message.interactive),
+        );
+        try {
+          parsed = JSON.parse(message.interactive.nfm_reply.response_json);
+        } catch (e) {
+          console.error("❌ Address parse error", e);
+          return;
+        }
+
+        // ✅ SAVE IN CONTACT
+        const data = parsed?.values || {};
+
+        const addressText = [
+          data?.house_number,
+          data?.floor_number,
+          data?.tower_number,
+          data?.building_name,
+          data?.address,
+          data?.landmark_area,
+          data?.city,
+          data?.state,
+          data?.in_pin_code,
+        ]
+          .filter(Boolean)
+          .join(", ");
+        await Contact.updateOne(
+          { _id: session.contact_id },
+          {
+            $set: {
+              "attributes.addressData": {
+                text: addressText,
+                latitude: data?.latitude,
+                longitude: data?.longitude,
+              },
+              "attributes.address": addressText,
+            },
+          },
+        );
+
+        await updateSession({
+          data: {
+            ...session.data,
+            address: addressText,
+            addressData: {
+              text: addressText,
+              latitude: parsed?.latitude,
+              longitude: parsed?.longitude,
+            },
+          },
+        });
+
+        // 🔥 NEXT NODE (VERY IMPORTANT)
+        const nextNodeId = getNextNodeId(automation.edges, node.id);
+        if (!nextNodeId) return;
+
+        return goToNode(nextNodeId);
+      }
+
+      // 📤 FIRST TIME SEND
+      await whatsapp.sendAddressMessage(
+        from,
+        node.message || "📍 Please enter your delivery address",
+      );
+
+      await updateSession({
+        current_node: node.id,
+        waiting_for: "address_message",
+      });
+
+      return;
     }
 
     default:
