@@ -90,7 +90,8 @@ export const executeNode = async ({
     const nextNodeId = getNextNodeId(automation.edges, node.id);
     if (!nextNodeId) return;
 
-    return goToNode(nextNodeId);
+    await goToNode(nextNodeId);
+    return;
   };
 
   console.log(
@@ -276,7 +277,8 @@ export const executeNode = async ({
       const nextNodeId = getNextNodeId(automation.edges, node.id);
       if (!nextNodeId) return;
 
-      return goToNode(nextNodeId);
+      await goToNode(nextNodeId);
+      return;
     }
 
     case "send_flow": {
@@ -311,7 +313,8 @@ export const executeNode = async ({
         const nextNodeId = getNextNodeId(automation.edges, node.id);
         if (!nextNodeId) return;
 
-        return goToNode(nextNodeId);
+        await goToNode(nextNodeId);
+        return;
       }
 
       /**
@@ -359,7 +362,8 @@ export const executeNode = async ({
         node.id,
         condition,
       );
-      return goToNode(nextNodeId as string);
+      await goToNode(nextNodeId);
+      return;
     }
 
     case "google_sheet": {
@@ -640,6 +644,7 @@ export const executeNode = async ({
     case "address_message": {
       // ✅ RESPONSE AAYA (IMPORTANT)
       if (
+        session.waiting_for === "address_message" &&
         message.interactive?.type === "nfm_reply" &&
         message.interactive?.nfm_reply?.response_json
       ) {
@@ -701,7 +706,8 @@ export const executeNode = async ({
         const nextNodeId = getNextNodeId(automation.edges, node.id);
         if (!nextNodeId) return;
 
-        return goToNode(nextNodeId);
+        await goToNode(nextNodeId);
+        return;
       }
 
       // 📤 FIRST TIME SEND

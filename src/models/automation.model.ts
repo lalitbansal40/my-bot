@@ -133,6 +133,8 @@ export interface AutomationEdge {
 /* ---------- DOCUMENT ---------- */
 export interface AutomationDocument extends Document {
   name: string;
+  channel_name: string;
+
   trigger: "new_message_received";
   status: "active" | "paused";
   disable_automation: boolean;
@@ -281,6 +283,7 @@ const AutomationEdgeSchema = new Schema<AutomationEdge>(
 const AutomationSchema = new Schema<AutomationDocument>(
   {
     name: { type: String, required: true },
+    channel_name: { type: String, required: true },
 
     trigger: {
       type: String,
@@ -336,6 +339,7 @@ const AutomationSchema = new Schema<AutomationDocument>(
   },
   {
     timestamps: true,
+    collection: "automations",
   },
 );
 

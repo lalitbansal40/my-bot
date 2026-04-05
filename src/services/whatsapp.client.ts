@@ -593,44 +593,80 @@ export const createWhatsAppClient = (
       }
     },
     async sendAddressMessage(to: string, text: string) {
+      const timestamp = Math.floor(Date.now() / 1000);
+
+      // 1️⃣ SAVE AS PENDING
+      const msg = await Message.create({
+        channel_id: channel._id,
+        contact_id: contact._id,
+        direction: "OUT",
+        type: "address_message",
+        status: "PENDING",
+        is_read: true,
+        payload: {
+          from: channel.phone_number_id,
+          timestamp: String(timestamp),
+          text: {
+            body: text,
+          },
+          type: "address_message",
+        },
+      });
+
       try {
-        const res = await axios.post(
-          `https://graph.facebook.com/v19.0/${channel.phone_number_id}/messages`,
-          {
-            messaging_product: "whatsapp",
-            to,
-            type: "interactive",
-            interactive: {
-              type: "address_message",
-
-              body: {
-                text: text || "📍 Please enter your delivery address",
-              },
-
-              action: {
-                name: "address_message",
-
-                // 🔥 MINIMUM REQUIRED PARAM
-                parameters: {
-                  country: "IN", // ⚠️ MUST for India
-                },
+        // 2️⃣ SEND TO WHATSAPP
+        const res = await api.post("/messages", {
+          messaging_product: "whatsapp",
+          to,
+          type: "interactive",
+          interactive: {
+            type: "address_message",
+            body: {
+              text: text || "📍 Please enter your delivery address",
+            },
+            action: {
+              name: "address_message",
+              parameters: {
+                country: "IN",
               },
             },
           },
+        });
+
+        const waId = res.data?.messages?.[0]?.id;
+
+        // 3️⃣ UPDATE MESSAGE
+        await Message.updateOne(
+          { _id: msg._id },
           {
-            headers: {
-              Authorization: `Bearer ${channel.access_token}`,
-              "Content-Type": "application/json",
-            },
+            status: "SENT",
+            wa_message_id: waId,
+            "payload.id": waId,
           },
         );
 
-        console.log("✅ Address message sent:", res.data);
-      } catch (err: any) {
-        console.error(
-          "❌ Address message error:",
-          err?.response?.data || err.message,
+        // 4️⃣ UPDATE CONTACT
+        await Contact.updateOne(
+          { _id: contact._id },
+          {
+            $set: {
+              last_message_id: msg._id,
+              last_message_at: new Date(),
+            },
+          },
         );
+      } catch (e: any) {
+        await Message.updateOne(
+          { _id: msg._id },
+          {
+            status: "FAILED",
+            error: JSON.stringify(
+              e?.response?.data || e?.message || "Unknown error",
+            ),
+          },
+        );
+
+        logError("sendAddressMessage", e);
       }
     },
 

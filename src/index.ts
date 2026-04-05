@@ -11,6 +11,8 @@ import contactRoutes from "./routes/contact.route";
 import messageRoutes from "./routes/message.route";
 import contactAttributeRoutes from "./routes/contactAttribute.route";
 import templatesRoutes from "./routes/template.routes";
+import automationRoutes from "./routes/automation.route";
+
 
 import { connectMongo } from "./database/mongodb";
 import cors from "cors";
@@ -77,6 +79,8 @@ app.use("/api/message", messageRoutes);
 app.use("/api/integrations", integrationRoutes);
 app.use("/whatsappflow", whatsappFlowRoutes);
 app.use("/api/templates", templatesRoutes);
+app.use("/api/automations", automationRoutes);
+
 
 /* =========================
 🔹 HEALTH CHECK
