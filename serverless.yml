@@ -1,12 +1,20 @@
 service: AutoChatix-backend
 
-frameworkVersion: "4"
+frameworkVersion: "^4.0.0"
 
 provider:
   name: aws
   runtime: nodejs18.x
   region: ap-south-1
   stage: ${opt:stage, 'dev'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+            - ses:SendRawEmail
+          Resource: "*"
 
   httpApi:
     cors:

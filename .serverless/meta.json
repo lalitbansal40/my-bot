@@ -1,16 +1,30 @@
 {
-  "/Users/lalitbansal/Documents/AutoChatix/AutoChatix-backend/serverless.yml": {
+  "/Users/lalitbansal/Documents/autochatix/AutoChatix-backend/serverless.yml": {
     "versionFramework": "4.34.0",
-    "servicePath": "/Users/lalitbansal/Documents/AutoChatix/AutoChatix-backend/serverless.yml",
+    "servicePath": "/Users/lalitbansal/Documents/autochatix/AutoChatix-backend/serverless.yml",
     "serviceConfigFileName": "serverless.yml",
     "service": {
       "service": "AutoChatix-backend",
-      "frameworkVersion": "4",
+      "frameworkVersion": "^4.0.0",
       "provider": {
         "name": "aws",
         "runtime": "nodejs18.x",
         "region": "ap-south-1",
         "stage": "prod",
+        "iam": {
+          "role": {
+            "statements": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "ses:SendEmail",
+                  "ses:SendRawEmail"
+                ],
+                "Resource": "*"
+              }
+            ]
+          }
+        },
         "httpApi": {
           "cors": {
             "allowedOrigins": [
@@ -40,7 +54,7 @@
           "WHATSAPP_VERIFY_TOKEN": "<REDACTED>",
           "JWT_SECRET": "<REDACTED>",
           "AWS_BUCKET": "autochatix-chat-media",
-          "WHATSAPP_BUCKET": "chatevexa-permanent-media"
+          "WHATSAPP_BUCKET": "autochatix-media-assets"
         },
         "deploymentBucket": "my-bot-serverless-deploy-302767540275",
         "versionFunctions": true,
@@ -115,6 +129,14 @@
                               "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/AutoChatix-backend-prod*:*:*"
                             }
                           ]
+                        },
+                        {
+                          "Effect": "Allow",
+                          "Action": [
+                            "ses:SendEmail",
+                            "ses:SendRawEmail"
+                          ],
+                          "Resource": "*"
                         }
                       ]
                     }
@@ -141,7 +163,7 @@
               "Properties": {
                 "Code": {
                   "S3Bucket": "my-bot-serverless-deploy-302767540275",
-                  "S3Key": "serverless/AutoChatix-backend/prod/1775883937106-2026-04-11T05:05:37.106Z/AutoChatix-backend.zip"
+                  "S3Key": "serverless/AutoChatix-backend/prod/1776193953935-2026-04-14T19:12:33.935Z/AutoChatix-backend.zip"
                 },
                 "Handler": "src/index.handler",
                 "Runtime": "nodejs18.x",
@@ -160,7 +182,7 @@
                     "WHATSAPP_VERIFY_TOKEN": "<REDACTED>",
                     "JWT_SECRET": "<REDACTED>",
                     "AWS_BUCKET": "autochatix-chat-media",
-                    "WHATSAPP_BUCKET": "chatevexa-permanent-media",
+                    "WHATSAPP_BUCKET": "autochatix-media-assets",
                     "NODE_OPTIONS": "--enable-source-maps"
                   }
                 },
@@ -175,14 +197,14 @@
                 "ApiLogGroup"
               ]
             },
-            "ApiLambdaVersionBMvZAU3zWEPZW1zEE0ifhVwP0qRZmuEKHtaD312UEg": {
+            "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA": {
               "Type": "AWS::Lambda::Version",
               "DeletionPolicy": "Retain",
               "Properties": {
                 "FunctionName": {
                   "Ref": "ApiLambdaFunction"
                 },
-                "CodeSha256": "4lXVJM5PFloHNl5FqDcrgD4quMxdiILUaqy/8Gs+apI="
+                "CodeSha256": "SbZZvGB/igYAfPVHm3Yt6g79sBxJt9E1DlGBtHLhN3k="
               }
             },
             "HttpApi": {
@@ -308,7 +330,7 @@
             "ApiLambdaFunctionQualifiedArn": {
               "Description": "Current Lambda function version",
               "Value": {
-                "Ref": "ApiLambdaVersionBMvZAU3zWEPZW1zEE0ifhVwP0qRZmuEKHtaD312UEg"
+                "Ref": "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA"
               },
               "Export": {
                 "Name": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"
@@ -375,7 +397,7 @@
           "memory": 1024,
           "runtime": "nodejs18.x",
           "vpc": {},
-          "versionLogicalId": "ApiLambdaVersionBMvZAU3zWEPZW1zEE0ifhVwP0qRZmuEKHtaD312UEg"
+          "versionLogicalId": "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA"
         }
       },
       "plugins": [
@@ -387,6 +409,20 @@
       "runtime": "nodejs18.x",
       "region": "ap-south-1",
       "stage": "prod",
+      "iam": {
+        "role": {
+          "statements": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "ses:SendEmail",
+                "ses:SendRawEmail"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+      },
       "httpApi": {
         "cors": {
           "allowedOrigins": [
@@ -416,7 +452,7 @@
         "WHATSAPP_VERIFY_TOKEN": "<REDACTED>",
         "JWT_SECRET": "<REDACTED>",
         "AWS_BUCKET": "autochatix-chat-media",
-        "WHATSAPP_BUCKET": "chatevexa-permanent-media"
+        "WHATSAPP_BUCKET": "autochatix-media-assets"
       },
       "deploymentBucket": "my-bot-serverless-deploy-302767540275",
       "versionFunctions": true,
@@ -491,6 +527,14 @@
                             "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/AutoChatix-backend-prod*:*:*"
                           }
                         ]
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "ses:SendEmail",
+                          "ses:SendRawEmail"
+                        ],
+                        "Resource": "*"
                       }
                     ]
                   }
@@ -517,7 +561,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "my-bot-serverless-deploy-302767540275",
-                "S3Key": "serverless/AutoChatix-backend/prod/1775883937106-2026-04-11T05:05:37.106Z/AutoChatix-backend.zip"
+                "S3Key": "serverless/AutoChatix-backend/prod/1776193953935-2026-04-14T19:12:33.935Z/AutoChatix-backend.zip"
               },
               "Handler": "src/index.handler",
               "Runtime": "nodejs18.x",
@@ -536,7 +580,7 @@
                   "WHATSAPP_VERIFY_TOKEN": "<REDACTED>",
                   "JWT_SECRET": "<REDACTED>",
                   "AWS_BUCKET": "autochatix-chat-media",
-                  "WHATSAPP_BUCKET": "chatevexa-permanent-media",
+                  "WHATSAPP_BUCKET": "autochatix-media-assets",
                   "NODE_OPTIONS": "--enable-source-maps"
                 }
               },
@@ -551,14 +595,14 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersionBMvZAU3zWEPZW1zEE0ifhVwP0qRZmuEKHtaD312UEg": {
+          "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "4lXVJM5PFloHNl5FqDcrgD4quMxdiILUaqy/8Gs+apI="
+              "CodeSha256": "SbZZvGB/igYAfPVHm3Yt6g79sBxJt9E1DlGBtHLhN3k="
             }
           },
           "HttpApi": {
@@ -684,7 +728,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersionBMvZAU3zWEPZW1zEE0ifhVwP0qRZmuEKHtaD312UEg"
+              "Ref": "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA"
             },
             "Export": {
               "Name": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"
@@ -737,7 +781,7 @@
       "serviceProvider": null,
       "instanceParameters": null
     },
-    "serviceRawFile": "service: AutoChatix-backend\n\nframeworkVersion: \"4\"\n\nprovider:\n  name: aws\n  runtime: nodejs18.x\n  region: ap-south-1\n  stage: ${opt:stage, 'dev'}\n\n  httpApi:\n    cors:\n      allowedOrigins:\n        - \"*\"\n      allowedHeaders:\n        - Content-Type\n        - Authorization\n      allowedMethods:\n        - GET\n        - POST\n        - PUT\n        - DELETE\n        - OPTIONS\n\n  environment:\n    GOOGLE_CLIENT_EMAIL: cake-arena@delivery-project-481106.iam.gserviceaccount.com\n    GOOGLE_MAPS_KEY: AIzaSyA4dao39ydwVuDPKAY4fCdB-wodNQ4qou4\n    GOOGLE_PRIVATE_KEY: -----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDXi0ITlGLEQftm\\nG8J6Upd6kdySiLGmZIAkPefZcqn+vEgw7yk+djt7302wEv62ZzTTbf+7i7fbh/fb\\nNBsvF+DNS44E6HkR2N30lOIIBnfTTg3xk+Cm3Hn3YZjmjEriPx7y4yuTxaX98Kse\\nzDKUmf91MZRUT0inNmV944ttebBWPbwMxzE4fkrsdLMiaJdkIKzTJN3H7jNbiQeC\\nSb/MZZqg47wpa13u/zJhhad9NJQo1NHrfk4JswQyU2kZwcFdg8lJMDXoS1c9J3KF\\nHluTVpD4mnV2o2GLAJTZ5cv38ZruKhGj3CraJacWtyICDRnwpIoWbLVy27mnl33p\\ndCjYF8phAgMBAAECggEAFGrcl3423OBjMAjxIyUvtCyc+ER6j4h1mvlCPRbfg4HS\\nVNBS19fbSqCce1FRT3X3Sw/gaaOShvkaQWluKcfZQ5kkmtJqpYYlgEWaI6h5MUrz\\nhy662ROJeiWEllIzxbq0880RE65lSujBTOmK4Qi1aiSIKHRaLXy5oHMtgfFFAuYp\\nmwGA7sqrHcnSUPGcGGpKGmDxAp4QX2veqJmT797WHdhEJGjNyfs4ufrXyb4bs8WO\\nfmerf8bPB+QpUy9mmlGJdMBWb29gi2vIXm322yIrSj0XUH+bSUnklrioSc9jEIX5\\nnq7OfSVRzL13XBTPjX2+RoY+Sj7l5Oxs3chTodiRAQKBgQD29GfEtaxZeNq+FnWP\\nCb6AiPGN8WPLZZfnNqrIw0rO0SPwJ3LFB9wf+oLfdm5YD+/gJFAlk1Wpaosy7zLA\\nj3U918wkRmLuYUjkJRkvHNZRaoGtxIIvnjCl+injoFJRTbyaprb5I0fTqcBqRdJO\\nswdYD1qclkNiFbw/jvtyTvgdPwKBgQDfcFO3DjfNeVX+f+lCAGNjhSBeNO3pYk2T\\nkzLmz5aXKjUohBOO5CBSMBnNHZ+9/8UuUNKytkT9zZatSTWHAIZ4tZsHvrL3lr4R\\n6afsv12skbW/N8hL8zJUdPYCodzG/b7cZ681LiHUACDGhE4bo/5cFBSJqpEUHPou\\nGPATzo8QXwKBgFguyecaIGMKnsGF75CWICpxvB+9dK8qpeVwRefOpKXZVIXq8Daf\\nKeFZaOY2ugxEFJnrHZttUwdd/jq/41WTZIAi0MibQbRxlL+y551FJNqJt6i/JOWw\\nDRsXi2G22+4gXhqzMV8hVAKm+Qh5yjFECHlPckG7/m/F5ySi//K/dCWtAoGAAUdM\\nQ1Tiftt94Xnr5MPJzcz6NW/KGLbGSNzjwqxXaUAFk9jFn+CwSqgZzbGos1aeUziF\\nLB6c4HLntNAhbUdUfaZUX8P4lDAZoFKc8l7Z813WE2UHUV/v3snYioVQlRbom6xA\\nNWaxLNxfU6N4KvJSR0aaI3uFXv8Xc2ITJZnd+bMCgYEAhbCEYz4hE8GC31LGvedP\\nMHBV1PGwoT/dxpPQs86DI+dwznXXBIgAszQBFTMUg58av7RlYKK1rkZ0AWhG+Uf+\\njApgZ9FrEjfePAI+n+yqWh9kV1nXE4m51EEXm8d/bD7B+U61TsjxmyxiWUD7tB3l\\n/05Nfh2nPha3tGEQWcNQ118=\\n-----END PRIVATE KEY-----\\n\n    MONGODB_URI: mongodb+srv://myBot:978408aA%40%23@cluster0.aseqq5r.mongodb.net/mybot?retryWrites=true&w=majority\n    PASSPHRASE: whatsapp\n    PORT: 5005\n    WHATSAPP_APP_SECRET: lalit\n    WHATSAPP_VERIFY_TOKEN: my_whatsapp_webhook_secret_123\n    JWT_SECRET: lalit\n    AWS_BUCKET: autochatix-chat-media\n    WHATSAPP_BUCKET: chatevexa-permanent-media\n  deploymentBucket:\n    name: my-bot-serverless-deploy-302767540275\n    blockPublicAccess: true\n\nfunctions:\n  api:\n    handler: src/index.handler\n    memorySize: 1024\n    timeout: 60\n    events:\n      - httpApi:\n          path: /{proxy+}\n          method: ANY\n\nplugins:\n  - serverless-offline",
+    "serviceRawFile": "service: AutoChatix-backend\n\nframeworkVersion: \"^4.0.0\"\n\nprovider:\n  name: aws\n  runtime: nodejs18.x\n  region: ap-south-1\n  stage: ${opt:stage, 'dev'}\n  iam:\n    role:\n      statements:\n        - Effect: Allow\n          Action:\n            - ses:SendEmail\n            - ses:SendRawEmail\n          Resource: \"*\"\n\n  httpApi:\n    cors:\n      allowedOrigins:\n        - \"*\"\n      allowedHeaders:\n        - Content-Type\n        - Authorization\n      allowedMethods:\n        - GET\n        - POST\n        - PUT\n        - DELETE\n        - OPTIONS\n\n  environment:\n    GOOGLE_CLIENT_EMAIL: cake-arena@delivery-project-481106.iam.gserviceaccount.com\n    GOOGLE_MAPS_KEY: AIzaSyA4dao39ydwVuDPKAY4fCdB-wodNQ4qou4\n    GOOGLE_PRIVATE_KEY: -----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDXi0ITlGLEQftm\\nG8J6Upd6kdySiLGmZIAkPefZcqn+vEgw7yk+djt7302wEv62ZzTTbf+7i7fbh/fb\\nNBsvF+DNS44E6HkR2N30lOIIBnfTTg3xk+Cm3Hn3YZjmjEriPx7y4yuTxaX98Kse\\nzDKUmf91MZRUT0inNmV944ttebBWPbwMxzE4fkrsdLMiaJdkIKzTJN3H7jNbiQeC\\nSb/MZZqg47wpa13u/zJhhad9NJQo1NHrfk4JswQyU2kZwcFdg8lJMDXoS1c9J3KF\\nHluTVpD4mnV2o2GLAJTZ5cv38ZruKhGj3CraJacWtyICDRnwpIoWbLVy27mnl33p\\ndCjYF8phAgMBAAECggEAFGrcl3423OBjMAjxIyUvtCyc+ER6j4h1mvlCPRbfg4HS\\nVNBS19fbSqCce1FRT3X3Sw/gaaOShvkaQWluKcfZQ5kkmtJqpYYlgEWaI6h5MUrz\\nhy662ROJeiWEllIzxbq0880RE65lSujBTOmK4Qi1aiSIKHRaLXy5oHMtgfFFAuYp\\nmwGA7sqrHcnSUPGcGGpKGmDxAp4QX2veqJmT797WHdhEJGjNyfs4ufrXyb4bs8WO\\nfmerf8bPB+QpUy9mmlGJdMBWb29gi2vIXm322yIrSj0XUH+bSUnklrioSc9jEIX5\\nnq7OfSVRzL13XBTPjX2+RoY+Sj7l5Oxs3chTodiRAQKBgQD29GfEtaxZeNq+FnWP\\nCb6AiPGN8WPLZZfnNqrIw0rO0SPwJ3LFB9wf+oLfdm5YD+/gJFAlk1Wpaosy7zLA\\nj3U918wkRmLuYUjkJRkvHNZRaoGtxIIvnjCl+injoFJRTbyaprb5I0fTqcBqRdJO\\nswdYD1qclkNiFbw/jvtyTvgdPwKBgQDfcFO3DjfNeVX+f+lCAGNjhSBeNO3pYk2T\\nkzLmz5aXKjUohBOO5CBSMBnNHZ+9/8UuUNKytkT9zZatSTWHAIZ4tZsHvrL3lr4R\\n6afsv12skbW/N8hL8zJUdPYCodzG/b7cZ681LiHUACDGhE4bo/5cFBSJqpEUHPou\\nGPATzo8QXwKBgFguyecaIGMKnsGF75CWICpxvB+9dK8qpeVwRefOpKXZVIXq8Daf\\nKeFZaOY2ugxEFJnrHZttUwdd/jq/41WTZIAi0MibQbRxlL+y551FJNqJt6i/JOWw\\nDRsXi2G22+4gXhqzMV8hVAKm+Qh5yjFECHlPckG7/m/F5ySi//K/dCWtAoGAAUdM\\nQ1Tiftt94Xnr5MPJzcz6NW/KGLbGSNzjwqxXaUAFk9jFn+CwSqgZzbGos1aeUziF\\nLB6c4HLntNAhbUdUfaZUX8P4lDAZoFKc8l7Z813WE2UHUV/v3snYioVQlRbom6xA\\nNWaxLNxfU6N4KvJSR0aaI3uFXv8Xc2ITJZnd+bMCgYEAhbCEYz4hE8GC31LGvedP\\nMHBV1PGwoT/dxpPQs86DI+dwznXXBIgAszQBFTMUg58av7RlYKK1rkZ0AWhG+Uf+\\njApgZ9FrEjfePAI+n+yqWh9kV1nXE4m51EEXm8d/bD7B+U61TsjxmyxiWUD7tB3l\\n/05Nfh2nPha3tGEQWcNQ118=\\n-----END PRIVATE KEY-----\\n\n    MONGODB_URI: mongodb+srv://myBot:978408aA%40%23@cluster0.aseqq5r.mongodb.net/mybot?retryWrites=true&w=majority\n    PASSPHRASE: whatsapp\n    PORT: 5005\n    WHATSAPP_APP_SECRET: lalit\n    WHATSAPP_VERIFY_TOKEN: my_whatsapp_webhook_secret_123\n    JWT_SECRET: lalit\n    AWS_BUCKET: autochatix-chat-media\n    WHATSAPP_BUCKET: autochatix-media-assets\n  deploymentBucket:\n    name: my-bot-serverless-deploy-302767540275\n    blockPublicAccess: true\n\nfunctions:\n  api:\n    handler: src/index.handler\n    memorySize: 1024\n    timeout: 60\n    events:\n      - httpApi:\n          path: /{proxy+}\n          method: ANY\n\nplugins:\n  - serverless-offline",
     "command": [
       "deploy"
     ],
@@ -750,20 +794,20 @@
     "userName": "mybot2004",
     "serviceProviderAwsAccountId": "302767540275",
     "serviceProviderAwsCfStackName": "AutoChatix-backend-prod",
-    "serviceProviderAwsCfStackId": "arn:aws:cloudformation:ap-south-1:302767540275:stack/AutoChatix-backend-prod/90871f90-301f-11f1-b1fb-0a0b1d3ff58b",
-    "serviceProviderAwsCfStackCreated": "2026-04-04T12:12:35.297Z",
-    "serviceProviderAwsCfStackUpdated": "2026-04-05T18:01:11.101Z",
+    "serviceProviderAwsCfStackId": "arn:aws:cloudformation:ap-south-1:302767540275:stack/AutoChatix-backend-prod/e3c90540-36a2-11f1-9012-0262a13086f3",
+    "serviceProviderAwsCfStackCreated": "2026-04-12T19:07:46.014Z",
+    "serviceProviderAwsCfStackUpdated": "2026-04-14T19:09:10.988Z",
     "serviceProviderAwsCfStackStatus": "UPDATE_COMPLETE",
     "serviceProviderAwsCfStackOutputs": [
       {
         "OutputKey": "ApiLambdaFunctionQualifiedArn",
-        "OutputValue": "arn:aws:lambda:ap-south-1:302767540275:function:AutoChatix-backend-prod-api:2",
+        "OutputValue": "arn:aws:lambda:ap-south-1:302767540275:function:AutoChatix-backend-prod-api:5",
         "Description": "Current Lambda function version",
         "ExportName": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"
       },
       {
         "OutputKey": "HttpApiId",
-        "OutputValue": "zlpgr9brta",
+        "OutputValue": "l2hjiwy5dj",
         "Description": "Id of the HTTP API",
         "ExportName": "sls-AutoChatix-backend-prod-HttpApiId"
       },
@@ -774,7 +818,7 @@
       },
       {
         "OutputKey": "HttpApiUrl",
-        "OutputValue": "https://zlpgr9brta.execute-api.ap-south-1.amazonaws.com",
+        "OutputValue": "https://l2hjiwy5dj.execute-api.ap-south-1.amazonaws.com",
         "Description": "URL of the HTTP API",
         "ExportName": "sls-AutoChatix-backend-prod-HttpApiUrl"
       }
@@ -846,6 +890,14 @@
                           "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/AutoChatix-backend-prod*:*:*"
                         }
                       ]
+                    },
+                    {
+                      "Effect": "Allow",
+                      "Action": [
+                        "ses:SendEmail",
+                        "ses:SendRawEmail"
+                      ],
+                      "Resource": "*"
                     }
                   ]
                 }
@@ -872,7 +924,7 @@
           "Properties": {
             "Code": {
               "S3Bucket": "my-bot-serverless-deploy-302767540275",
-              "S3Key": "serverless/AutoChatix-backend/prod/1775883937106-2026-04-11T05:05:37.106Z/AutoChatix-backend.zip"
+              "S3Key": "serverless/AutoChatix-backend/prod/1776193953935-2026-04-14T19:12:33.935Z/AutoChatix-backend.zip"
             },
             "Handler": "src/index.handler",
             "Runtime": "nodejs18.x",
@@ -891,7 +943,7 @@
                 "WHATSAPP_VERIFY_TOKEN": "<REDACTED>",
                 "JWT_SECRET": "<REDACTED>",
                 "AWS_BUCKET": "autochatix-chat-media",
-                "WHATSAPP_BUCKET": "chatevexa-permanent-media",
+                "WHATSAPP_BUCKET": "autochatix-media-assets",
                 "NODE_OPTIONS": "--enable-source-maps"
               }
             },
@@ -906,14 +958,14 @@
             "ApiLogGroup"
           ]
         },
-        "ApiLambdaVersionBMvZAU3zWEPZW1zEE0ifhVwP0qRZmuEKHtaD312UEg": {
+        "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA": {
           "Type": "AWS::Lambda::Version",
           "DeletionPolicy": "Retain",
           "Properties": {
             "FunctionName": {
               "Ref": "ApiLambdaFunction"
             },
-            "CodeSha256": "4lXVJM5PFloHNl5FqDcrgD4quMxdiILUaqy/8Gs+apI="
+            "CodeSha256": "SbZZvGB/igYAfPVHm3Yt6g79sBxJt9E1DlGBtHLhN3k="
           }
         },
         "HttpApi": {
@@ -1038,7 +1090,7 @@
         "ApiLambdaFunctionQualifiedArn": {
           "Description": "Current Lambda function version",
           "Value": {
-            "Ref": "ApiLambdaVersionBMvZAU3zWEPZW1zEE0ifhVwP0qRZmuEKHtaD312UEg"
+            "Ref": "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA"
           },
           "Export": {
             "Name": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"

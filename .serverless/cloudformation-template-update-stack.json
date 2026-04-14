@@ -65,6 +65,14 @@
                       "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/AutoChatix-backend-prod*:*:*"
                     }
                   ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ses:SendEmail",
+                    "ses:SendRawEmail"
+                  ],
+                  "Resource": "*"
                 }
               ]
             }
@@ -91,7 +99,7 @@
       "Properties": {
         "Code": {
           "S3Bucket": "my-bot-serverless-deploy-302767540275",
-          "S3Key": "serverless/AutoChatix-backend/prod/1776098835415-2026-04-13T16:47:15.415Z/AutoChatix-backend.zip"
+          "S3Key": "serverless/AutoChatix-backend/prod/1776193953935-2026-04-14T19:12:33.935Z/AutoChatix-backend.zip"
         },
         "Handler": "src/index.handler",
         "Runtime": "nodejs18.x",
@@ -125,14 +133,14 @@
         "ApiLogGroup"
       ]
     },
-    "ApiLambdaVersionrjZ2mDLUPzSFqITYtGiplaCy3Wt19o8Z9tiBkzgF1A": {
+    "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "ApiLambdaFunction"
         },
-        "CodeSha256": "XHF/YPiirL+rHjCIRFp3sk/BpKXZTGhGgKSWKMgG5UM="
+        "CodeSha256": "SbZZvGB/igYAfPVHm3Yt6g79sBxJt9E1DlGBtHLhN3k="
       }
     },
     "HttpApi": {
@@ -257,7 +265,7 @@
     "ApiLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "ApiLambdaVersionrjZ2mDLUPzSFqITYtGiplaCy3Wt19o8Z9tiBkzgF1A"
+        "Ref": "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA"
       },
       "Export": {
         "Name": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"

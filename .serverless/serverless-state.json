@@ -9,6 +9,20 @@
       "runtime": "nodejs18.x",
       "region": "ap-south-1",
       "stage": "prod",
+      "iam": {
+        "role": {
+          "statements": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "ses:SendEmail",
+                "ses:SendRawEmail"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+      },
       "httpApi": {
         "cors": {
           "allowedOrigins": [
@@ -38,7 +52,7 @@
         "WHATSAPP_VERIFY_TOKEN": "my_whatsapp_webhook_secret_123",
         "JWT_SECRET": "lalit",
         "AWS_BUCKET": "autochatix-chat-media",
-        "WHATSAPP_BUCKET": "chatevexa-permanent-media"
+        "WHATSAPP_BUCKET": "autochatix-media-assets"
       },
       "deploymentBucket": "my-bot-serverless-deploy-302767540275",
       "versionFunctions": true,
@@ -113,6 +127,9 @@
                             "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/AutoChatix-backend-prod*:*:*"
                           }
                         ]
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][0]"
                       }
                     ]
                   }
@@ -139,7 +156,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "my-bot-serverless-deploy-302767540275",
-                "S3Key": "serverless/AutoChatix-backend/prod/1775883937106-2026-04-11T05:05:37.106Z/AutoChatix-backend.zip"
+                "S3Key": "serverless/AutoChatix-backend/prod/1776193953935-2026-04-14T19:12:33.935Z/AutoChatix-backend.zip"
               },
               "Handler": "src/index.handler",
               "Runtime": "nodejs18.x",
@@ -158,7 +175,7 @@
                   "WHATSAPP_VERIFY_TOKEN": "my_whatsapp_webhook_secret_123",
                   "JWT_SECRET": "lalit",
                   "AWS_BUCKET": "autochatix-chat-media",
-                  "WHATSAPP_BUCKET": "chatevexa-permanent-media",
+                  "WHATSAPP_BUCKET": "autochatix-media-assets",
                   "NODE_OPTIONS": "--enable-source-maps"
                 }
               },
@@ -173,14 +190,14 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersionBMvZAU3zWEPZW1zEE0ifhVwP0qRZmuEKHtaD312UEg": {
+          "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "4lXVJM5PFloHNl5FqDcrgD4quMxdiILUaqy/8Gs+apI="
+              "CodeSha256": "SbZZvGB/igYAfPVHm3Yt6g79sBxJt9E1DlGBtHLhN3k="
             }
           },
           "HttpApi": {
@@ -302,7 +319,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersionBMvZAU3zWEPZW1zEE0ifhVwP0qRZmuEKHtaD312UEg"
+              "Ref": "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA"
             },
             "Export": {
               "Name": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"
@@ -373,14 +390,14 @@
         "memory": 1024,
         "runtime": "nodejs18.x",
         "vpc": {},
-        "versionLogicalId": "ApiLambdaVersionBMvZAU3zWEPZW1zEE0ifhVwP0qRZmuEKHtaD312UEg"
+        "versionLogicalId": "ApiLambdaVersionv61BSwdtzrcs30OWGI8j9nSYxpRBzoWpe7YAAN6PBA"
       }
     },
     "configValidationMode": "warn",
     "serviceFilename": "serverless",
     "initialServerlessConfig": {
       "service": "AutoChatix-backend",
-      "frameworkVersion": "4",
+      "frameworkVersion": "^4.0.0",
       "provider": {
         "$ref": "$[\"service\"][\"provider\"]"
       },
@@ -396,7 +413,7 @@
     "layers": {}
   },
   "package": {
-    "artifactDirectoryName": "serverless/AutoChatix-backend/prod/1775883937106-2026-04-11T05:05:37.106Z",
+    "artifactDirectoryName": "serverless/AutoChatix-backend/prod/1776193953935-2026-04-14T19:12:33.935Z",
     "artifact": "AutoChatix-backend.zip"
   }
 }
