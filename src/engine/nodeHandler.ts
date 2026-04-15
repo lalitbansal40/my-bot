@@ -262,7 +262,7 @@ export const executeNode = async ({
         data: {
           ...session.data,
           address: structuredAddress.fullAddress,
-           [`attributes.${saveKey}`]: {
+           [`${saveKey}`]: {
               text: structuredAddress.fullAddress,
               latitude: structuredAddress.latitude,
               longitude: structuredAddress.longitude,
@@ -699,7 +699,7 @@ export const executeNode = async ({
             ...session.data,
             address: addressText,
              $set: {
-              [`attributes.${saveKey}`]: {
+              [`${saveKey}`]: {
                 text: addressText,
                 latitude: data?.latitude,
                 longitude: data?.longitude,

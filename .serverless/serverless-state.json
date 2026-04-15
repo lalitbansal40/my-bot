@@ -156,7 +156,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "my-bot-serverless-deploy-302767540275",
-                "S3Key": "serverless/AutoChatix-backend/prod/1776281606416-2026-04-15T19:33:26.416Z/AutoChatix-backend.zip"
+                "S3Key": "serverless/AutoChatix-backend/prod/1776281986526-2026-04-15T19:39:46.526Z/AutoChatix-backend.zip"
               },
               "Handler": "src/index.handler",
               "Runtime": "nodejs18.x",
@@ -190,14 +190,14 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersionmXD5cqYFv42ItGT0jZVasoSJc9940d1J6OddeQRcd8": {
+          "ApiLambdaVersionslxS5xOGf9FSvgBDGZeiFN48BBXExzgcvcqtu1hJLk": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "RUQ4XlxShlldDvLr+CLtm1aDNPkN9rVonDXDSOjME0A="
+              "CodeSha256": "WjXwOB6A2Kk3/pRktAVztolFg6jWGrvkrjRAmgPFdfY="
             }
           },
           "HttpApi": {
@@ -319,7 +319,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersionmXD5cqYFv42ItGT0jZVasoSJc9940d1J6OddeQRcd8"
+              "Ref": "ApiLambdaVersionslxS5xOGf9FSvgBDGZeiFN48BBXExzgcvcqtu1hJLk"
             },
             "Export": {
               "Name": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"
@@ -390,7 +390,7 @@
         "memory": 1024,
         "runtime": "nodejs18.x",
         "vpc": {},
-        "versionLogicalId": "ApiLambdaVersionmXD5cqYFv42ItGT0jZVasoSJc9940d1J6OddeQRcd8"
+        "versionLogicalId": "ApiLambdaVersionslxS5xOGf9FSvgBDGZeiFN48BBXExzgcvcqtu1hJLk"
       }
     },
     "configValidationMode": "warn",
@@ -413,7 +413,7 @@
     "layers": {}
   },
   "package": {
-    "artifactDirectoryName": "serverless/AutoChatix-backend/prod/1776281606416-2026-04-15T19:33:26.416Z",
+    "artifactDirectoryName": "serverless/AutoChatix-backend/prod/1776281986526-2026-04-15T19:39:46.526Z",
     "artifact": "AutoChatix-backend.zip"
   }
 }
