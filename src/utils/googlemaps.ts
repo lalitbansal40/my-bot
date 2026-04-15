@@ -92,6 +92,19 @@ export const getStructuredAddress = async (
       "";
 
     const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+  .filter(Boolean)
+  .join(", ");
+
+const displayAddress = [
+  getComponent([AddressType.subpremise, AddressType.street_number]),
+  getComponent([AddressType.route]),
+  getComponent([AddressType.sublocality, AddressType.neighborhood]),
+  getComponent([AddressType.locality]),
+  getComponent([AddressType.administrative_area_level_1]),
+  getComponent([AddressType.postal_code])
+]
+  .filter(Boolean)   // empty values hata deta hai
+  .join(", ");       // ✅ string bana deta hai
 
     /* -------- Final Structured Address -------- */
     return {
@@ -114,7 +127,8 @@ export const getStructuredAddress = async (
       distanceFromReferenceKm: +distance.toFixed(2),
       latitude: lat,
       longitude: lng,
-      googleMapsUrl:googleMapsUrl
+      googleMapsUrl:googleMapsUrl,
+      displayAddress,
     };
   } catch (error) {
     console.error("❌ Error fetching address:", error);

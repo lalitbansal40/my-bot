@@ -38,13 +38,13 @@ interface Context {
   updateSession: (data: {
     current_node?: string;
     waiting_for?:
-      | "input"
-      | "button"
-      | "location"
-      | "flow"
-      | "carousel"
-      | "address_message"
-      | null;
+    | "input"
+    | "button"
+    | "location"
+    | "flow"
+    | "carousel"
+    | "address_message"
+    | null;
     data?: Record<string, any>;
   }) => Promise<void>;
 }
@@ -248,6 +248,7 @@ export const executeNode = async ({
               longitude: structuredAddress.longitude,
               structured: structuredAddress,
               googleMapsUrl: structuredAddress.googleMapsUrl,
+              displayAddress: structuredAddress.displayAddress
             },
           },
         },
@@ -642,6 +643,7 @@ export const executeNode = async ({
     }
 
     case "address_message": {
+      const saveKey = node.save_to || "address";
       // ✅ RESPONSE AAYA (IMPORTANT)
       if (
         session.waiting_for === "address_message" &&
@@ -680,12 +682,12 @@ export const executeNode = async ({
           { _id: session.contact_id },
           {
             $set: {
-              "attributes.addressData": {
+              [`attributes.${saveKey}`]: {
                 text: addressText,
                 latitude: data?.latitude,
                 longitude: data?.longitude,
-              },
-              "attributes.address": addressText,
+                displayAddress: addressText
+              }
             },
           },
         );
