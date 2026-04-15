@@ -28,6 +28,7 @@ export interface StructuredAddress {
   latitude: number;
   longitude: number;
   googleMapsUrl?: string; 
+  displayAddress:string;
 }
 
 /* -------------------- DISTANCE CALCULATION -------------------- */
@@ -92,8 +93,6 @@ export const getStructuredAddress = async (
       "";
 
     const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
-  .filter(Boolean)
-  .join(", ");
 
 const displayAddress = [
   getComponent([AddressType.subpremise, AddressType.street_number]),
