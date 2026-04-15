@@ -114,47 +114,48 @@ export const receiveMessage = async (req: Request, res: Response) => {
     // TEXT
     if (message.type === "text") {
       text = message.text?.body || null;
-    } else if (message.type === "interactive") {
-      text = message.interactive?.button_reply?.title || "interactive";
-
-      // 🔥 IMPORTANT (flow / address capture)
-      if (message.interactive?.nfm_reply?.response_json) {
-        try {
-          const parsed = JSON.parse(
-            message.interactive.nfm_reply.response_json,
-          );
-
-          // 🔥 SAVE DIRECTLY IN CONTACT
-          await Contact.updateOne(
-            { _id: contact._id },
-            {
-              $set: {
-                "attributes.address": {
-                  text:
-                    parsed?.formatted_address ||
-                    parsed?.address ||
-                    parsed?.full_address ||
-                    "",
-                  latitude: parsed?.latitude,
-                  longitude: parsed?.longitude,
-                },
-                "attributes.addressData": {
-                  text:
-                    parsed?.formatted_address ||
-                    parsed?.address ||
-                    parsed?.full_address ||
-                    "",
-                  latitude: parsed?.latitude,
-                  longitude: parsed?.longitude,
-                },
-              },
-            },
-          );
-        } catch (e) {
-          console.error("❌ flow parse error", e);
-        }
-      }
     }
+    //  else if (message.type === "interactive") {
+    //   text = message.interactive?.button_reply?.title || "interactive";
+
+    //   // 🔥 IMPORTANT (flow / address capture)
+    //   if (message.interactive?.nfm_reply?.response_json) {
+    //     try {
+    //       const parsed = JSON.parse(
+    //         message.interactive.nfm_reply.response_json,
+    //       );
+
+    //       // 🔥 SAVE DIRECTLY IN CONTACT
+    //       await Contact.updateOne(
+    //         { _id: contact._id },
+    //         {
+    //           $set: {
+    //             "attributes.address": {
+    //               text:
+    //                 parsed?.formatted_address ||
+    //                 parsed?.address ||
+    //                 parsed?.full_address ||
+    //                 "",
+    //               latitude: parsed?.latitude,
+    //               longitude: parsed?.longitude,
+    //             },
+    //             "attributes.addressData": {
+    //               text:
+    //                 parsed?.formatted_address ||
+    //                 parsed?.address ||
+    //                 parsed?.full_address ||
+    //                 "",
+    //               latitude: parsed?.latitude,
+    //               longitude: parsed?.longitude,
+    //             },
+    //           },
+    //         },
+    //       );
+    //     } catch (e) {
+    //       console.error("❌ flow parse error", e);
+    //     }
+    //   }
+    // }
 
     // MEDIA TYPES
     else if (["image", "video", "audio", "document"].includes(message.type)) {

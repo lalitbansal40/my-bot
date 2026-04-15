@@ -163,13 +163,13 @@
               "Properties": {
                 "Code": {
                   "S3Bucket": "my-bot-serverless-deploy-302767540275",
-                  "S3Key": "serverless/AutoChatix-backend/prod/1776279212481-2026-04-15T18:53:32.481Z/AutoChatix-backend.zip"
+                  "S3Key": "serverless/AutoChatix-backend/prod/1776280056065-2026-04-15T19:07:36.065Z/AutoChatix-backend.zip"
                 },
                 "Handler": "src/index.handler",
                 "Runtime": "nodejs18.x",
                 "FunctionName": "AutoChatix-backend-prod-api",
                 "MemorySize": 1024,
-                "Timeout": 60,
+                "Timeout": 120,
                 "Environment": {
                   "Variables": {
                     "GOOGLE_CLIENT_EMAIL": "cake-arena@delivery-project-481106.iam.gserviceaccount.com",
@@ -197,14 +197,14 @@
                 "ApiLogGroup"
               ]
             },
-            "ApiLambdaVersion5ARB2H0ddkaQJHbhKPs9Tqqt9fkD4qMPHq91DBdqcE4": {
+            "ApiLambdaVersionZawpOnmOKyYsX9MF9G2N3NfFt2qrYj7uPkBj0uzSAc": {
               "Type": "AWS::Lambda::Version",
               "DeletionPolicy": "Retain",
               "Properties": {
                 "FunctionName": {
                   "Ref": "ApiLambdaFunction"
                 },
-                "CodeSha256": "oc+IOqrLVyKIFyefO+MoyGputUGwaqNzj2hON3hCTX8="
+                "CodeSha256": "wG23fLrSw7SkgvoUFHje5l5OMuNkceS2Hxqbt/Y+QhM="
               }
             },
             "HttpApi": {
@@ -330,7 +330,7 @@
             "ApiLambdaFunctionQualifiedArn": {
               "Description": "Current Lambda function version",
               "Value": {
-                "Ref": "ApiLambdaVersion5ARB2H0ddkaQJHbhKPs9Tqqt9fkD4qMPHq91DBdqcE4"
+                "Ref": "ApiLambdaVersionZawpOnmOKyYsX9MF9G2N3NfFt2qrYj7uPkBj0uzSAc"
               },
               "Export": {
                 "Name": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"
@@ -378,7 +378,7 @@
         "api": {
           "handler": "src/index.handler",
           "memorySize": 1024,
-          "timeout": 60,
+          "timeout": 120,
           "events": [
             {
               "httpApi": {
@@ -397,7 +397,7 @@
           "memory": 1024,
           "runtime": "nodejs18.x",
           "vpc": {},
-          "versionLogicalId": "ApiLambdaVersion5ARB2H0ddkaQJHbhKPs9Tqqt9fkD4qMPHq91DBdqcE4"
+          "versionLogicalId": "ApiLambdaVersionZawpOnmOKyYsX9MF9G2N3NfFt2qrYj7uPkBj0uzSAc"
         }
       },
       "plugins": [
@@ -561,13 +561,13 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "my-bot-serverless-deploy-302767540275",
-                "S3Key": "serverless/AutoChatix-backend/prod/1776279212481-2026-04-15T18:53:32.481Z/AutoChatix-backend.zip"
+                "S3Key": "serverless/AutoChatix-backend/prod/1776280056065-2026-04-15T19:07:36.065Z/AutoChatix-backend.zip"
               },
               "Handler": "src/index.handler",
               "Runtime": "nodejs18.x",
               "FunctionName": "AutoChatix-backend-prod-api",
               "MemorySize": 1024,
-              "Timeout": 60,
+              "Timeout": 120,
               "Environment": {
                 "Variables": {
                   "GOOGLE_CLIENT_EMAIL": "cake-arena@delivery-project-481106.iam.gserviceaccount.com",
@@ -595,14 +595,14 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersion5ARB2H0ddkaQJHbhKPs9Tqqt9fkD4qMPHq91DBdqcE4": {
+          "ApiLambdaVersionZawpOnmOKyYsX9MF9G2N3NfFt2qrYj7uPkBj0uzSAc": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "oc+IOqrLVyKIFyefO+MoyGputUGwaqNzj2hON3hCTX8="
+              "CodeSha256": "wG23fLrSw7SkgvoUFHje5l5OMuNkceS2Hxqbt/Y+QhM="
             }
           },
           "HttpApi": {
@@ -728,7 +728,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersion5ARB2H0ddkaQJHbhKPs9Tqqt9fkD4qMPHq91DBdqcE4"
+              "Ref": "ApiLambdaVersionZawpOnmOKyYsX9MF9G2N3NfFt2qrYj7uPkBj0uzSAc"
             },
             "Export": {
               "Name": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"
@@ -781,7 +781,7 @@
       "serviceProvider": null,
       "instanceParameters": null
     },
-    "serviceRawFile": "service: AutoChatix-backend\n\nframeworkVersion: \"^4.0.0\"\n\nprovider:\n  name: aws\n  runtime: nodejs18.x\n  region: ap-south-1\n  stage: ${opt:stage, 'dev'}\n  iam:\n    role:\n      statements:\n        - Effect: Allow\n          Action:\n            - ses:SendEmail\n            - ses:SendRawEmail\n          Resource: \"*\"\n\n  httpApi:\n    cors:\n      allowedOrigins:\n        - \"*\"\n      allowedHeaders:\n        - Content-Type\n        - Authorization\n      allowedMethods:\n        - GET\n        - POST\n        - PUT\n        - DELETE\n        - OPTIONS\n\n  environment:\n    GOOGLE_CLIENT_EMAIL: cake-arena@delivery-project-481106.iam.gserviceaccount.com\n    GOOGLE_MAPS_KEY: AIzaSyA4dao39ydwVuDPKAY4fCdB-wodNQ4qou4\n    GOOGLE_PRIVATE_KEY: -----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDXi0ITlGLEQftm\\nG8J6Upd6kdySiLGmZIAkPefZcqn+vEgw7yk+djt7302wEv62ZzTTbf+7i7fbh/fb\\nNBsvF+DNS44E6HkR2N30lOIIBnfTTg3xk+Cm3Hn3YZjmjEriPx7y4yuTxaX98Kse\\nzDKUmf91MZRUT0inNmV944ttebBWPbwMxzE4fkrsdLMiaJdkIKzTJN3H7jNbiQeC\\nSb/MZZqg47wpa13u/zJhhad9NJQo1NHrfk4JswQyU2kZwcFdg8lJMDXoS1c9J3KF\\nHluTVpD4mnV2o2GLAJTZ5cv38ZruKhGj3CraJacWtyICDRnwpIoWbLVy27mnl33p\\ndCjYF8phAgMBAAECggEAFGrcl3423OBjMAjxIyUvtCyc+ER6j4h1mvlCPRbfg4HS\\nVNBS19fbSqCce1FRT3X3Sw/gaaOShvkaQWluKcfZQ5kkmtJqpYYlgEWaI6h5MUrz\\nhy662ROJeiWEllIzxbq0880RE65lSujBTOmK4Qi1aiSIKHRaLXy5oHMtgfFFAuYp\\nmwGA7sqrHcnSUPGcGGpKGmDxAp4QX2veqJmT797WHdhEJGjNyfs4ufrXyb4bs8WO\\nfmerf8bPB+QpUy9mmlGJdMBWb29gi2vIXm322yIrSj0XUH+bSUnklrioSc9jEIX5\\nnq7OfSVRzL13XBTPjX2+RoY+Sj7l5Oxs3chTodiRAQKBgQD29GfEtaxZeNq+FnWP\\nCb6AiPGN8WPLZZfnNqrIw0rO0SPwJ3LFB9wf+oLfdm5YD+/gJFAlk1Wpaosy7zLA\\nj3U918wkRmLuYUjkJRkvHNZRaoGtxIIvnjCl+injoFJRTbyaprb5I0fTqcBqRdJO\\nswdYD1qclkNiFbw/jvtyTvgdPwKBgQDfcFO3DjfNeVX+f+lCAGNjhSBeNO3pYk2T\\nkzLmz5aXKjUohBOO5CBSMBnNHZ+9/8UuUNKytkT9zZatSTWHAIZ4tZsHvrL3lr4R\\n6afsv12skbW/N8hL8zJUdPYCodzG/b7cZ681LiHUACDGhE4bo/5cFBSJqpEUHPou\\nGPATzo8QXwKBgFguyecaIGMKnsGF75CWICpxvB+9dK8qpeVwRefOpKXZVIXq8Daf\\nKeFZaOY2ugxEFJnrHZttUwdd/jq/41WTZIAi0MibQbRxlL+y551FJNqJt6i/JOWw\\nDRsXi2G22+4gXhqzMV8hVAKm+Qh5yjFECHlPckG7/m/F5ySi//K/dCWtAoGAAUdM\\nQ1Tiftt94Xnr5MPJzcz6NW/KGLbGSNzjwqxXaUAFk9jFn+CwSqgZzbGos1aeUziF\\nLB6c4HLntNAhbUdUfaZUX8P4lDAZoFKc8l7Z813WE2UHUV/v3snYioVQlRbom6xA\\nNWaxLNxfU6N4KvJSR0aaI3uFXv8Xc2ITJZnd+bMCgYEAhbCEYz4hE8GC31LGvedP\\nMHBV1PGwoT/dxpPQs86DI+dwznXXBIgAszQBFTMUg58av7RlYKK1rkZ0AWhG+Uf+\\njApgZ9FrEjfePAI+n+yqWh9kV1nXE4m51EEXm8d/bD7B+U61TsjxmyxiWUD7tB3l\\n/05Nfh2nPha3tGEQWcNQ118=\\n-----END PRIVATE KEY-----\\n\n    MONGODB_URI: mongodb+srv://myBot:978408aA%40%23@cluster0.aseqq5r.mongodb.net/mybot?retryWrites=true&w=majority\n    PASSPHRASE: whatsapp\n    PORT: 5005\n    WHATSAPP_APP_SECRET: lalit\n    WHATSAPP_VERIFY_TOKEN: my_whatsapp_webhook_secret_123\n    JWT_SECRET: lalit\n    AWS_BUCKET: autochatix-chat-media\n    WHATSAPP_BUCKET: autochatix-media-assets\n  deploymentBucket:\n    name: my-bot-serverless-deploy-302767540275\n    blockPublicAccess: true\n\nfunctions:\n  api:\n    handler: src/index.handler\n    memorySize: 1024\n    timeout: 60\n    events:\n      - httpApi:\n          path: /{proxy+}\n          method: ANY\n\nplugins:\n  - serverless-offline",
+    "serviceRawFile": "service: AutoChatix-backend\n\nframeworkVersion: \"^4.0.0\"\n\nprovider:\n  name: aws\n  runtime: nodejs18.x\n  region: ap-south-1\n  stage: ${opt:stage, 'dev'}\n  iam:\n    role:\n      statements:\n        - Effect: Allow\n          Action:\n            - ses:SendEmail\n            - ses:SendRawEmail\n          Resource: \"*\"\n\n  httpApi:\n    cors:\n      allowedOrigins:\n        - \"*\"\n      allowedHeaders:\n        - Content-Type\n        - Authorization\n      allowedMethods:\n        - GET\n        - POST\n        - PUT\n        - DELETE\n        - OPTIONS\n\n  environment:\n    GOOGLE_CLIENT_EMAIL: cake-arena@delivery-project-481106.iam.gserviceaccount.com\n    GOOGLE_MAPS_KEY: AIzaSyA4dao39ydwVuDPKAY4fCdB-wodNQ4qou4\n    GOOGLE_PRIVATE_KEY: -----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDXi0ITlGLEQftm\\nG8J6Upd6kdySiLGmZIAkPefZcqn+vEgw7yk+djt7302wEv62ZzTTbf+7i7fbh/fb\\nNBsvF+DNS44E6HkR2N30lOIIBnfTTg3xk+Cm3Hn3YZjmjEriPx7y4yuTxaX98Kse\\nzDKUmf91MZRUT0inNmV944ttebBWPbwMxzE4fkrsdLMiaJdkIKzTJN3H7jNbiQeC\\nSb/MZZqg47wpa13u/zJhhad9NJQo1NHrfk4JswQyU2kZwcFdg8lJMDXoS1c9J3KF\\nHluTVpD4mnV2o2GLAJTZ5cv38ZruKhGj3CraJacWtyICDRnwpIoWbLVy27mnl33p\\ndCjYF8phAgMBAAECggEAFGrcl3423OBjMAjxIyUvtCyc+ER6j4h1mvlCPRbfg4HS\\nVNBS19fbSqCce1FRT3X3Sw/gaaOShvkaQWluKcfZQ5kkmtJqpYYlgEWaI6h5MUrz\\nhy662ROJeiWEllIzxbq0880RE65lSujBTOmK4Qi1aiSIKHRaLXy5oHMtgfFFAuYp\\nmwGA7sqrHcnSUPGcGGpKGmDxAp4QX2veqJmT797WHdhEJGjNyfs4ufrXyb4bs8WO\\nfmerf8bPB+QpUy9mmlGJdMBWb29gi2vIXm322yIrSj0XUH+bSUnklrioSc9jEIX5\\nnq7OfSVRzL13XBTPjX2+RoY+Sj7l5Oxs3chTodiRAQKBgQD29GfEtaxZeNq+FnWP\\nCb6AiPGN8WPLZZfnNqrIw0rO0SPwJ3LFB9wf+oLfdm5YD+/gJFAlk1Wpaosy7zLA\\nj3U918wkRmLuYUjkJRkvHNZRaoGtxIIvnjCl+injoFJRTbyaprb5I0fTqcBqRdJO\\nswdYD1qclkNiFbw/jvtyTvgdPwKBgQDfcFO3DjfNeVX+f+lCAGNjhSBeNO3pYk2T\\nkzLmz5aXKjUohBOO5CBSMBnNHZ+9/8UuUNKytkT9zZatSTWHAIZ4tZsHvrL3lr4R\\n6afsv12skbW/N8hL8zJUdPYCodzG/b7cZ681LiHUACDGhE4bo/5cFBSJqpEUHPou\\nGPATzo8QXwKBgFguyecaIGMKnsGF75CWICpxvB+9dK8qpeVwRefOpKXZVIXq8Daf\\nKeFZaOY2ugxEFJnrHZttUwdd/jq/41WTZIAi0MibQbRxlL+y551FJNqJt6i/JOWw\\nDRsXi2G22+4gXhqzMV8hVAKm+Qh5yjFECHlPckG7/m/F5ySi//K/dCWtAoGAAUdM\\nQ1Tiftt94Xnr5MPJzcz6NW/KGLbGSNzjwqxXaUAFk9jFn+CwSqgZzbGos1aeUziF\\nLB6c4HLntNAhbUdUfaZUX8P4lDAZoFKc8l7Z813WE2UHUV/v3snYioVQlRbom6xA\\nNWaxLNxfU6N4KvJSR0aaI3uFXv8Xc2ITJZnd+bMCgYEAhbCEYz4hE8GC31LGvedP\\nMHBV1PGwoT/dxpPQs86DI+dwznXXBIgAszQBFTMUg58av7RlYKK1rkZ0AWhG+Uf+\\njApgZ9FrEjfePAI+n+yqWh9kV1nXE4m51EEXm8d/bD7B+U61TsjxmyxiWUD7tB3l\\n/05Nfh2nPha3tGEQWcNQ118=\\n-----END PRIVATE KEY-----\\n\n    MONGODB_URI: mongodb+srv://myBot:978408aA%40%23@cluster0.aseqq5r.mongodb.net/mybot?retryWrites=true&w=majority\n    PASSPHRASE: whatsapp\n    PORT: 5005\n    WHATSAPP_APP_SECRET: lalit\n    WHATSAPP_VERIFY_TOKEN: my_whatsapp_webhook_secret_123\n    JWT_SECRET: lalit\n    AWS_BUCKET: autochatix-chat-media\n    WHATSAPP_BUCKET: autochatix-media-assets\n  deploymentBucket:\n    name: my-bot-serverless-deploy-302767540275\n    blockPublicAccess: true\n\nfunctions:\n  api:\n    handler: src/index.handler\n    memorySize: 1024\n    timeout: 120\n    events:\n      - httpApi:\n          path: /{proxy+}\n          method: ANY\n\nplugins:\n  - serverless-offline",
     "command": [
       "deploy"
     ],
@@ -796,12 +796,12 @@
     "serviceProviderAwsCfStackName": "AutoChatix-backend-prod",
     "serviceProviderAwsCfStackId": "arn:aws:cloudformation:ap-south-1:302767540275:stack/AutoChatix-backend-prod/e3c90540-36a2-11f1-9012-0262a13086f3",
     "serviceProviderAwsCfStackCreated": "2026-04-12T19:07:46.014Z",
-    "serviceProviderAwsCfStackUpdated": "2026-04-15T18:52:51.358Z",
+    "serviceProviderAwsCfStackUpdated": "2026-04-15T18:53:39.313Z",
     "serviceProviderAwsCfStackStatus": "UPDATE_COMPLETE",
     "serviceProviderAwsCfStackOutputs": [
       {
         "OutputKey": "ApiLambdaFunctionQualifiedArn",
-        "OutputValue": "arn:aws:lambda:ap-south-1:302767540275:function:AutoChatix-backend-prod-api:7",
+        "OutputValue": "arn:aws:lambda:ap-south-1:302767540275:function:AutoChatix-backend-prod-api:8",
         "Description": "Current Lambda function version",
         "ExportName": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"
       },
@@ -924,13 +924,13 @@
           "Properties": {
             "Code": {
               "S3Bucket": "my-bot-serverless-deploy-302767540275",
-              "S3Key": "serverless/AutoChatix-backend/prod/1776279212481-2026-04-15T18:53:32.481Z/AutoChatix-backend.zip"
+              "S3Key": "serverless/AutoChatix-backend/prod/1776280056065-2026-04-15T19:07:36.065Z/AutoChatix-backend.zip"
             },
             "Handler": "src/index.handler",
             "Runtime": "nodejs18.x",
             "FunctionName": "AutoChatix-backend-prod-api",
             "MemorySize": 1024,
-            "Timeout": 60,
+            "Timeout": 120,
             "Environment": {
               "Variables": {
                 "GOOGLE_CLIENT_EMAIL": "cake-arena@delivery-project-481106.iam.gserviceaccount.com",
@@ -958,14 +958,14 @@
             "ApiLogGroup"
           ]
         },
-        "ApiLambdaVersion5ARB2H0ddkaQJHbhKPs9Tqqt9fkD4qMPHq91DBdqcE4": {
+        "ApiLambdaVersionZawpOnmOKyYsX9MF9G2N3NfFt2qrYj7uPkBj0uzSAc": {
           "Type": "AWS::Lambda::Version",
           "DeletionPolicy": "Retain",
           "Properties": {
             "FunctionName": {
               "Ref": "ApiLambdaFunction"
             },
-            "CodeSha256": "oc+IOqrLVyKIFyefO+MoyGputUGwaqNzj2hON3hCTX8="
+            "CodeSha256": "wG23fLrSw7SkgvoUFHje5l5OMuNkceS2Hxqbt/Y+QhM="
           }
         },
         "HttpApi": {
@@ -1090,7 +1090,7 @@
         "ApiLambdaFunctionQualifiedArn": {
           "Description": "Current Lambda function version",
           "Value": {
-            "Ref": "ApiLambdaVersion5ARB2H0ddkaQJHbhKPs9Tqqt9fkD4qMPHq91DBdqcE4"
+            "Ref": "ApiLambdaVersionZawpOnmOKyYsX9MF9G2N3NfFt2qrYj7uPkBj0uzSAc"
           },
           "Export": {
             "Name": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"

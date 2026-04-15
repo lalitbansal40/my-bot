@@ -156,13 +156,13 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "my-bot-serverless-deploy-302767540275",
-                "S3Key": "serverless/AutoChatix-backend/prod/1776279212481-2026-04-15T18:53:32.481Z/AutoChatix-backend.zip"
+                "S3Key": "serverless/AutoChatix-backend/prod/1776280056065-2026-04-15T19:07:36.065Z/AutoChatix-backend.zip"
               },
               "Handler": "src/index.handler",
               "Runtime": "nodejs18.x",
               "FunctionName": "AutoChatix-backend-prod-api",
               "MemorySize": 1024,
-              "Timeout": 60,
+              "Timeout": 120,
               "Environment": {
                 "Variables": {
                   "GOOGLE_CLIENT_EMAIL": "cake-arena@delivery-project-481106.iam.gserviceaccount.com",
@@ -190,14 +190,14 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersion5ARB2H0ddkaQJHbhKPs9Tqqt9fkD4qMPHq91DBdqcE4": {
+          "ApiLambdaVersionZawpOnmOKyYsX9MF9G2N3NfFt2qrYj7uPkBj0uzSAc": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "oc+IOqrLVyKIFyefO+MoyGputUGwaqNzj2hON3hCTX8="
+              "CodeSha256": "wG23fLrSw7SkgvoUFHje5l5OMuNkceS2Hxqbt/Y+QhM="
             }
           },
           "HttpApi": {
@@ -319,7 +319,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersion5ARB2H0ddkaQJHbhKPs9Tqqt9fkD4qMPHq91DBdqcE4"
+              "Ref": "ApiLambdaVersionZawpOnmOKyYsX9MF9G2N3NfFt2qrYj7uPkBj0uzSAc"
             },
             "Export": {
               "Name": "sls-AutoChatix-backend-prod-ApiLambdaFunctionQualifiedArn"
@@ -371,7 +371,7 @@
       "api": {
         "handler": "src/index.handler",
         "memorySize": 1024,
-        "timeout": 60,
+        "timeout": 120,
         "events": [
           {
             "httpApi": {
@@ -390,7 +390,7 @@
         "memory": 1024,
         "runtime": "nodejs18.x",
         "vpc": {},
-        "versionLogicalId": "ApiLambdaVersion5ARB2H0ddkaQJHbhKPs9Tqqt9fkD4qMPHq91DBdqcE4"
+        "versionLogicalId": "ApiLambdaVersionZawpOnmOKyYsX9MF9G2N3NfFt2qrYj7uPkBj0uzSAc"
       }
     },
     "configValidationMode": "warn",
@@ -413,7 +413,7 @@
     "layers": {}
   },
   "package": {
-    "artifactDirectoryName": "serverless/AutoChatix-backend/prod/1776279212481-2026-04-15T18:53:32.481Z",
+    "artifactDirectoryName": "serverless/AutoChatix-backend/prod/1776280056065-2026-04-15T19:07:36.065Z",
     "artifact": "AutoChatix-backend.zip"
   }
 }
