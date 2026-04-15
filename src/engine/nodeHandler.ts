@@ -698,16 +698,16 @@ export const executeNode = async ({
           data: {
             ...session.data,
             address: addressText,
-             $set: {
-              [`${saveKey}`]: {
+            [`${saveKey}`]: {
                 text: addressText,
                 latitude: data?.latitude,
                 longitude: data?.longitude,
                 displayAddress: addressText
               }
-            },
           },
         });
+
+
 
         // 🔥 NEXT NODE (VERY IMPORTANT)
         const nextNodeId = getNextNodeId(automation.edges, node.id);
