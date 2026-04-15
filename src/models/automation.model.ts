@@ -19,6 +19,7 @@ export type AutomationNodeType =
   | "ask_input"
   | "carousel"
   | "address_message"
+  | "set_contact_attribute"
   | "payment_summary";
 
 /* ---------- NODE ---------- */

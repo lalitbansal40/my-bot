@@ -44,6 +44,7 @@ interface Context {
     | "flow"
     | "carousel"
     | "address_message"
+    | "set_contact_attribute"
     | null;
     data?: Record<string, any>;
   }) => Promise<void>;
@@ -730,6 +731,70 @@ export const executeNode = async ({
 
       return;
     }
+    case "set_contact_attribute": {
+  if (!node.config?.key) {
+    console.warn("❌ set_contact_attribute: key missing");
+    return;
+  }
+
+  const contact = await Contact.findById(session.contact_id).lean();
+  if (!contact) {
+    console.warn("❌ Contact not found");
+    return;
+  }
+
+  /* =========================
+     🔥 BUILD CONTEXT (IMPORTANT)
+  ========================= */
+  const context = {
+    ...session.data,
+    contact,
+    ...contact.attributes,
+  };
+
+  /* =========================
+     🔥 INTERPOLATE VALUE
+  ========================= */
+  const key = node.config.key;
+  let value = node.config.value;
+
+  if (typeof value === "string") {
+    value = interpolate(value, context);
+  }
+
+  /* =========================
+     ✅ SAVE IN CONTACT
+  ========================= */
+  await Contact.updateOne(
+    { _id: session.contact_id },
+    {
+      $set: {
+        [`attributes.${key}`]: value,
+      },
+    },
+  );
+
+  /* =========================
+     ✅ SAVE IN SESSION
+  ========================= */
+  await updateSession({
+    data: {
+      ...session.data,
+      [key]: value,
+    },
+  });
+
+  console.log(`✅ Saved attribute ${key} =`, value);
+
+  /* =========================
+     🔥 MOVE NEXT
+  ========================= */
+  const nextNodeId = getNextNodeId(automation.edges, node.id);
+  if (!nextNodeId) return;
+
+  await goToNode(nextNodeId);
+  return;
+}
 
     default:
       console.warn("⚠️ Unsupported node type:", node.type);
