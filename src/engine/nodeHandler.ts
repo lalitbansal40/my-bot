@@ -262,12 +262,14 @@ export const executeNode = async ({
         data: {
           ...session.data,
           address: structuredAddress.fullAddress,
-          addressData: {
-            text: structuredAddress.fullAddress,
-            latitude: structuredAddress.latitude,
-            longitude: structuredAddress.longitude,
-            googleMapsUrl: structuredAddress.googleMapsUrl,
-          },
+           [`attributes.${saveKey}`]: {
+              text: structuredAddress.fullAddress,
+              latitude: structuredAddress.latitude,
+              longitude: structuredAddress.longitude,
+              structured: structuredAddress,
+              googleMapsUrl: structuredAddress.googleMapsUrl,
+              displayAddress: structuredAddress.displayAddress
+            },
         },
       });
 
@@ -696,10 +698,13 @@ export const executeNode = async ({
           data: {
             ...session.data,
             address: addressText,
-            addressData: {
-              text: addressText,
-              latitude: parsed?.latitude,
-              longitude: parsed?.longitude,
+             $set: {
+              [`attributes.${saveKey}`]: {
+                text: addressText,
+                latitude: data?.latitude,
+                longitude: data?.longitude,
+                displayAddress: addressText
+              }
             },
           },
         });
