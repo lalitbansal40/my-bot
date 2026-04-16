@@ -1,3 +1,4 @@
+import HelloMyCab from "../flows/helloMycab.service";
 import CakeArena from "../services/cakeArena.service";
 
 /**
@@ -20,6 +21,9 @@ export interface VendorConfig {
 const vendors: Record<string, VendorConfig> = {
   "cake-arena": {
     flowAppClass: CakeArena,
+  },
+  "hello-my-cab": {
+    flowAppClass: HelloMyCab,
   },
 };
 
