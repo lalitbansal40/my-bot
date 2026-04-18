@@ -44,6 +44,7 @@ interface Context {
     | "flow"
     | "carousel"
     | "address_message"
+    | "list"
     | "set_contact_attribute"
     | null;
     data?: Record<string, any>;
@@ -263,14 +264,14 @@ export const executeNode = async ({
         data: {
           ...session.data,
           address: structuredAddress.fullAddress,
-           [`${saveKey}`]: {
-              text: structuredAddress.fullAddress,
-              latitude: structuredAddress.latitude,
-              longitude: structuredAddress.longitude,
-              structured: structuredAddress,
-              googleMapsUrl: structuredAddress.googleMapsUrl,
-              displayAddress: structuredAddress.displayAddress
-            },
+          [`${saveKey}`]: {
+            text: structuredAddress.fullAddress,
+            latitude: structuredAddress.latitude,
+            longitude: structuredAddress.longitude,
+            structured: structuredAddress,
+            googleMapsUrl: structuredAddress.googleMapsUrl,
+            displayAddress: structuredAddress.displayAddress
+          },
         },
       });
 
@@ -700,11 +701,11 @@ export const executeNode = async ({
             ...session.data,
             address: addressText,
             [`${saveKey}`]: {
-                text: addressText,
-                latitude: data?.latitude,
-                longitude: data?.longitude,
-                displayAddress: addressText
-              }
+              text: addressText,
+              latitude: data?.latitude,
+              longitude: data?.longitude,
+              displayAddress: addressText
+            }
           },
         });
 
@@ -731,70 +732,109 @@ export const executeNode = async ({
 
       return;
     }
+    case "list": {
+      const contact = await Contact.findById(session.contact_id).lean();
+
+      const context = {
+        ...session.data,
+        contact,
+        ...contact?.attributes,
+      };
+
+      // 🔥 interpolate body
+      const bodyText = interpolate(node.body || "Please choose", context);
+
+      // 🔥 build sections dynamically
+      const sections = (node.sections || []).map((section: any) => ({
+        title: section.title,
+        rows: section.rows.map((row: any) => ({
+          id: String(row.id),
+          title: interpolate(row.title, context),
+          description: row.description
+            ? interpolate(row.description, context)
+            : undefined,
+        })),
+      }));
+
+      // 🚀 SEND LIST
+      await whatsapp.sendList(from, {
+        header: node.header,
+        body: bodyText,
+        buttonText: node.button_text || "Select",
+        sections,
+      });
+
+      await updateSession({
+        current_node: node.id,
+        waiting_for: "button", // list bhi button reply deta hai
+      });
+
+      return;
+    }
     case "set_contact_attribute": {
-  if (!node.config?.key) {
-    console.warn("❌ set_contact_attribute: key missing");
-    return;
-  }
+      if (!node.config?.key) {
+        console.warn("❌ set_contact_attribute: key missing");
+        return;
+      }
 
-  const contact = await Contact.findById(session.contact_id).lean();
-  if (!contact) {
-    console.warn("❌ Contact not found");
-    return;
-  }
+      const contact = await Contact.findById(session.contact_id).lean();
+      if (!contact) {
+        console.warn("❌ Contact not found");
+        return;
+      }
 
-  /* =========================
-     🔥 BUILD CONTEXT (IMPORTANT)
-  ========================= */
-  const context = {
-    ...session.data,
-    contact,
-    ...contact.attributes,
-  };
+      /* =========================
+         🔥 BUILD CONTEXT (IMPORTANT)
+      ========================= */
+      const context = {
+        ...session.data,
+        contact,
+        ...contact.attributes,
+      };
 
-  /* =========================
-     🔥 INTERPOLATE VALUE
-  ========================= */
-  const key = node.config.key;
-  let value = node.config.value;
+      /* =========================
+         🔥 INTERPOLATE VALUE
+      ========================= */
+      const key = node.config.key;
+      let value = node.config.value;
 
-  if (typeof value === "string") {
-    value = interpolate(value, context);
-  }
+      if (typeof value === "string") {
+        value = interpolate(value, context);
+      }
 
-  /* =========================
-     ✅ SAVE IN CONTACT
-  ========================= */
-  await Contact.updateOne(
-    { _id: session.contact_id },
-    {
-      $set: {
-        [`attributes.${key}`]: value,
-      },
-    },
-  );
+      /* =========================
+         ✅ SAVE IN CONTACT
+      ========================= */
+      await Contact.updateOne(
+        { _id: session.contact_id },
+        {
+          $set: {
+            [`attributes.${key}`]: value,
+          },
+        },
+      );
 
-  /* =========================
-     ✅ SAVE IN SESSION
-  ========================= */
-  await updateSession({
-    data: {
-      ...session.data,
-      [key]: value,
-    },
-  });
+      /* =========================
+         ✅ SAVE IN SESSION
+      ========================= */
+      await updateSession({
+        data: {
+          ...session.data,
+          [key]: value,
+        },
+      });
 
-  console.log(`✅ Saved attribute ${key} =`, value);
+      console.log(`✅ Saved attribute ${key} =`, value);
 
-  /* =========================
-     🔥 MOVE NEXT
-  ========================= */
-  const nextNodeId = getNextNodeId(automation.edges, node.id);
-  if (!nextNodeId) return;
+      /* =========================
+         🔥 MOVE NEXT
+      ========================= */
+      const nextNodeId = getNextNodeId(automation.edges, node.id);
+      if (!nextNodeId) return;
 
-  await goToNode(nextNodeId);
-  return;
-}
+      await goToNode(nextNodeId);
+      return;
+    }
 
     default:
       console.warn("⚠️ Unsupported node type:", node.type);

@@ -20,6 +20,7 @@ export type AutomationNodeType =
   | "carousel"
   | "address_message"
   | "set_contact_attribute"
+  | "list"
   | "payment_summary";
 
 /* ---------- NODE ---------- */
@@ -29,6 +30,16 @@ export interface AutomationNode {
   ========================= */
   id: string;
   type: AutomationNodeType;
+  sections?: {
+    title: string;
+    rows: {
+      id: string;
+      title: string;
+      description?: string;
+    }[];
+  }[];
+
+  button_text?: string;
 
   /* =========================
      COMMON (ALL NODES)
@@ -95,12 +106,12 @@ export interface AutomationNode {
      BORZO DELIVERY NODE
   ========================= */
   borzo_action?:
-    | "calculate"
-    | "create"
-    | "update"
-    | "cancel"
-    | "track"
-    | "get_order";
+  | "calculate"
+  | "create"
+  | "update"
+  | "cancel"
+  | "track"
+  | "get_order";
 
   vehicle_type_id?: number;
 

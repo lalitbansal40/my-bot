@@ -21,6 +21,22 @@ export interface WhatsAppClient {
       data?: Record<string, any>; // 👈 dynamic data
     },
   ): Promise<void>;
+  sendList(
+    to: string,
+    payload: {
+      header?: string;
+      body: string;
+      buttonText: string;
+      sections: {
+        title: string;
+        rows: {
+          id: string;
+          title: string;
+          description?: string;
+        }[];
+      }[];
+    }
+  ): Promise<void>;
   sendInteractiveMedia(
     to: string,
     payload: {
@@ -146,6 +162,98 @@ export const createWhatsAppClient = (
         );
 
         logError("sendText", e);
+      }
+    },
+    async sendList(
+      to: string,
+      payload: {
+        header?: string;
+        body: string;
+        buttonText: string;
+        sections: {
+          title: string;
+          rows: {
+            id: string;
+            title: string;
+            description?: string;
+          }[];
+        }[];
+      }
+    ) {
+      const msg = await Message.create({
+        channel_id: channel._id,
+        contact_id: contact._id,
+        direction: "OUT",
+        type: "list",
+        status: "PENDING",
+        payload,
+        is_read: true,
+      });
+
+      try {
+        const res = await api.post("/messages", {
+          messaging_product: "whatsapp",
+          to,
+          type: "interactive",
+          interactive: {
+            type: "list",
+
+            header: payload.header
+              ? {
+                type: "text",
+                text: payload.header,
+              }
+              : undefined,
+
+            body: {
+              text: payload.body,
+            },
+
+            action: {
+              button: payload.buttonText || "Select",
+              sections: payload.sections.map((section) => ({
+                title: section.title,
+                rows: section.rows.map((row) => ({
+                  id: String(row.id),
+                  title: row.title.substring(0, 24),
+                  description: row.description?.substring(0, 72),
+                })),
+              })),
+            },
+          },
+        });
+
+        const waId = res.data?.messages?.[0]?.id;
+
+        await Message.updateOne(
+          { _id: msg._id },
+          {
+            status: "SENT",
+            wa_message_id: waId,
+          }
+        );
+
+        await Contact.updateOne(
+          { _id: contact._id },
+          {
+            $set: {
+              last_message_id: msg._id,
+              last_message_at: new Date(),
+            },
+          }
+        );
+      } catch (e: any) {
+        await Message.updateOne(
+          { _id: msg._id },
+          {
+            status: "FAILED",
+            error: JSON.stringify(
+              e?.response?.data || e?.message || "Unknown error"
+            ),
+          }
+        );
+
+        logError("sendList", e);
       }
     },
     async requestLocation(to, text) {
@@ -285,9 +393,9 @@ export const createWhatsAppClient = (
               type: "list",
               header: data.header
                 ? {
-                    type: "text",
-                    text: data.header,
-                  }
+                  type: "text",
+                  text: data.header,
+                }
                 : undefined,
               body: {
                 text: data.body,
@@ -334,8 +442,8 @@ export const createWhatsAppClient = (
               status: "FAILED",
               error: JSON.stringify(
                 fallbackError?.response?.data ||
-                  fallbackError?.message ||
-                  "Unknown error",
+                fallbackError?.message ||
+                "Unknown error",
               ),
             },
           );

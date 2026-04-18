@@ -1,6 +1,6 @@
 import cakeData from "../cakeData.json";
 import { GoogleSheetService } from "../services/googlesheet.service";
-
+import moment from "moment-timezone";
 interface FlowDecryptedBody {
     screen?: string;
     data?: Record<string, any>;
@@ -50,6 +50,8 @@ class HelloMyCab {
             case "DESTINATION_SELECT":
                 return this.handleCarDestination(data);
 
+            case "BOOKING_DETAILS":
+                return this.handleBookingDetailsScreen(data)
             default:
                 throw new Error(`Unhandled screen: ${screen}`);
         }
@@ -169,25 +171,115 @@ class HelloMyCab {
         const price = selectedCarKey ? selected[selectedCarKey] : null;
 
         return {
-            screen: "SUMMARY",
+            screen: "BOOKING_DETAILS",
             data: {
                 phone_number: data?.phone_number,
                 destination: data.destination,
                 car_type: data.car_type,
-                price: `₹${price}`
+                price: `₹${price}`,
+                time_enabled: "false",
+                times: [
+                    {
+                        "id": "13",
+                        "title": "1 PM"
+                    },
+                    {
+                        "id": "14",
+                        "title": "2 PM"
+                    },
+                    {
+                        "id": "15",
+                        "title": "3 PM"
+                    },
+                    {
+                        "id": "16",
+                        "title": "4 PM"
+                    }
+                ]
             },
         };
     }
 
+    private async handleBookingDetailsScreen(data: any) {
+        const { date, hour } = data;
 
-    private errorScreen(message: string) {
+        const nowIST = moment().tz("Asia/Kolkata");
+
+        const selectedDate = moment(date).tz("Asia/Kolkata").startOf("day");
+
+        let startTime;
+        let endTime;
+
+        const isToday = selectedDate.isSame(nowIST, "day");
+
+        if (isToday) {
+            // ⏰ current + 2 hours
+            const minTime = nowIST.clone().add(2, "hours");
+
+            // ❌ अगर next day me chala gaya → no slots
+            if (!minTime.isSame(nowIST, "day")) {
+                return {
+                    screen: "BOOKING_DETAILS",
+                    data: {
+                        time_enabled: "false",
+                        error: "No slots available for today. Please select next date 🙏"
+                    }
+                };
+            }
+
+            startTime = minTime.clone().startOf("hour");
+            endTime = nowIST.clone().hour(22).minute(0); // 10 PM
+        } else {
+            // 🟢 future date
+            startTime = selectedDate.clone().hour(6).minute(0); // 6 AM
+            endTime = selectedDate.clone().hour(22).minute(0); // 10 PM
+        }
+
+        const times: any[] = [];
+
+        let current = startTime.clone();
+
+        while (current.isSameOrBefore(endTime)) {
+            times.push({
+                id: current.format("HH:mm"),
+                title: current.format("h A")
+            });
+
+            current.add(1, "hour");
+        }
+
+        // 🔥 अगर date + time dono aa gaya → summary
+        if (date && hour) {
+
+            const datetime = moment.tz(
+                `${date} ${hour}:${data.minute || "00"}`,
+                "YYYY-MM-DD HH:mm",
+                "Asia/Kolkata"
+            );
+
+            return {
+                screen: "SUMMARY",
+                data: {
+                    phone_number: data.phone_number,
+                    destination: data.destination,
+                    car_type: data.car_type,
+                    alternate_phone: data.alternate_phone || "",
+                    notes: data.notes || "",
+                    date_time: datetime.format("DD MMM YYYY, h:mm A"),
+                    price: data.price
+                }
+            };
+        }
+
         return {
-            screen: "ERROR",
+            screen: "BOOKING_DETAILS",
             data: {
-                message,
+                time_enabled: "true",
+                times: times
             },
         };
     }
+
 
 
     private healthCheck() {
