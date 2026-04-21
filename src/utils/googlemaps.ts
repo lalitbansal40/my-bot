@@ -13,7 +13,6 @@ const REFERENCE_COORDS = {
   lng: 75.82641420437723,
 };
 
-const MAX_DISTANCE_KM = 20;
 
 /* -------------------- INTERFACE -------------------- */
 export interface StructuredAddress {
@@ -78,12 +77,6 @@ export const getStructuredAddress = async (
       lat,
       lng
     );
-
-    if (distance > MAX_DISTANCE_KM) {
-      return `Address is too far (${distance.toFixed(
-        2
-      )} km). We only deliver within 20 km of Jagatpura, Jaipur.`;
-    }
 
     /* -------- Address Components -------- */
     const components = result.address_components;
