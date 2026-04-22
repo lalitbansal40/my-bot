@@ -91,11 +91,46 @@ export const receiveMessage = async (req: Request, res: Response) => {
       { upsert: true, new: true }
     );
 
-    // 🚫 DUPLICATE MESSAGE
-    const existing = await Message.findOne({
-      wa_message_id: message.id,
-    });
-    if (existing) return res.sendStatus(200);
+    // ✅ ADD THIS HERE (RIGHT AFTER CONTACT UPSERT)
+    if (!contact.attributes) {
+      await Contact.updateOne(
+        { _id: contact._id },
+        {
+          $set: {
+            attributes: {
+              current_node: "start",
+              waiting_for: null,
+            },
+          },
+        }
+      );
+
+      // optional: memory में भी update कर लो
+      contact.attributes = {
+        current_node: "start",
+        waiting_for: null,
+      };
+    }
+    try {
+      await Message.create({
+        channel_id: channel._id,
+        contact_id: contact._id,
+
+        direction: "IN",
+        type: "text",
+
+        wa_message_id: message.id,
+        text: message.text?.body || "",
+
+        payload: message, // 🔥 full raw message
+
+        status: "PENDING",
+      });
+    } catch (e) {
+      console.log("⚠️ Duplicate prevented (DB)");
+      return res.sendStatus(200);
+    }
+
 
     // 🧠 SESSION
     const session = {
@@ -116,6 +151,7 @@ export const receiveMessage = async (req: Request, res: Response) => {
       status: "active",
       keywords: { $in: [userText] },
     });
+
 
     if (keywordAutomation) {
       console.log("🔥 Override → reset flow");
@@ -146,6 +182,7 @@ export const receiveMessage = async (req: Request, res: Response) => {
       contact.attributes?.current_node &&
       contact.attributes.current_node !== "start"
     ) {
+
       // 🔥 try continue
       if (contact.attributes?.automation_id) {
         automation = await Automation.findById(
@@ -153,25 +190,8 @@ export const receiveMessage = async (req: Request, res: Response) => {
         );
       }
 
-      // 🛟 RECOVERY (VERY IMPORTANT)
-      if (!automation) {
-        console.log("⚠️ Recovering automation...");
-
-        automation = await Automation.findOne({
-          channel_id: channel._id,
-          trigger: "new_message_received",
-          status: "active",
-        });
-      }
 
       if (!automation) {
-        automation = await Automation.findOne({
-          channel_id: channel._id,
-          trigger: "new_message_received",
-          status: "active",
-          disable_automation: { $ne: true },
-          keywords: { $in: [userText] },
-        });
 
         // 🔥 STEP 2: EMPTY KEYWORD AUTOMATION
         if (!automation) {
@@ -280,12 +300,35 @@ export const receiveMessage = async (req: Request, res: Response) => {
       session.data = {};
     }
 
+    // 🔥 DEFAULT AUTOMATION (ONLY EMPTY KEYWORDS)
+    if (!automation) {
+      console.log("⚡ Default (no keyword)");
+
+      automation = await Automation.findOne({
+        channel_id: channel._id,
+        trigger: "new_message_received",
+        status: "active",
+        $or: [
+          { keywords: { $exists: false } },
+          { keywords: { $size: 0 } },
+        ],
+      });
+    }
+
     if (!automation) {
       console.log("❌ No automation found");
       return res.sendStatus(200);
     }
 
     session.data.automation_id = automation._id;
+    await Contact.updateOne(
+      { _id: contact._id },
+      {
+        $set: {
+          "attributes.automation_id": automation._id,
+        },
+      }
+    );
     // 🚀 RUN ENGINE
     await runAutomation({
       automation,
