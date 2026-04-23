@@ -7,9 +7,6 @@ import { createWhatsAppClient } from "../services/whatsapp.client";
 import { runAutomation } from "../engine/automationExecuter";
 import Contact from "../models/contact.model";
 import Message from "../models/message.model";
-import { sendTypingIndicator } from "../helpers/whatsapp.helper";
-import { downloadWhatsAppMedia } from "../helpers/downloadMedia";
-import { uploadToS3 } from "../services/s3.service";
 import axios from "axios";
 import { getNextNodeId } from "../engine/grapht";
 dotenv.config({ path: path.join(".env") });
@@ -388,27 +385,32 @@ export const receiveMessage = async (req: Request, res: Response) => {
 };
 
 function getCallTrigger(call: any) {
-  if (call.event === "connect") {
-    return "call_started";
+  // ❌ CONNECT IGNORE
+  if (call.event !== "terminate") return null;
+
+  // ✅ ONLY TERMINATE HANDLE
+  if (call.status === "COMPLETED") {
+    return "call_completed";
   }
 
-  if (call.event === "terminate") {
-    if (call.status === "COMPLETED") {
-      return "call_completed";
-    } else {
-      return "call_missed";
-    }
-  }
-
-  return null;
+  return "call_missed";
 }
 
-
+const processedCalls = new Set<string>();
 export const handleCallEvent = async (value: any) => {
   try {
     if (!value?.calls) return false;
 
     const call = value.calls[0];
+
+    // 🔥 DUPLICATE रोकने के लिए
+    if (processedCalls.has(call.id)) {
+      return true;
+    }
+    processedCalls.add(call.id);
+
+    // cleanup
+    setTimeout(() => processedCalls.delete(call.id), 60000);
 
     const trigger = getCallTrigger(call);
     if (!trigger) return true;
