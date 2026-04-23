@@ -15,6 +15,9 @@ import { buildBorzoPayload } from "../utils/borzopayload";
 import { BorzoApiClient } from "../services/borzo.service";
 import { RazorpayService } from "../services/razorpay.service";
 import axios from "axios";
+import { TemplateModel } from "../models/template.model";
+import { uploadMediaForSending } from "../controllers/template.controller";
+import { Channel } from "../models/channel.model";
 const getFreshSession = async (contactId: string) => {
   const freshContact = await Contact.findById(contactId).lean();
 
@@ -48,6 +51,7 @@ interface Context {
     | "set_contact_attribute"
     | "call_to_action"
     | "api_request"
+    | "send_template"
     | null;
     data?: Record<string, any>;
   }) => Promise<void>;
@@ -1009,6 +1013,76 @@ export const executeNode = async ({
         );
 
         return;
+      }
+    }
+
+    case "send_template": {
+      const contact = await Contact.findById(session.contact_id).lean();
+
+      const context = {
+        ...session.data,
+        contact,
+        ...contact?.attributes,
+      };
+
+      if (node.type === "send_template" && node.template) {
+        const tpl = node.template;
+
+        // 🔥 DB से template लाओ
+        const dbTemplate = await TemplateModel.findOne({
+          name: tpl.name,
+          channel_id: automation.channel_id,
+        });
+
+        if (!dbTemplate) {
+          console.error("❌ Template not found:", tpl.name);
+          return;
+        }
+
+        // 🔥 BODY interpolate
+        const body = (tpl.body || []).map((val) =>
+          interpolate(val, context)
+        );
+
+        // 🔥 HEADER BUILD (MAIN FIX)
+        let header:
+          | {
+            type: "image" | "document" | "video";
+            id: string;
+          }
+          | undefined;
+
+        if (dbTemplate.header_format === "IMAGE") {
+          let mediaId = dbTemplate.media_id;
+
+          if (!mediaId && dbTemplate.media_url) {
+            const channel = await Channel.findById(automation.channel_id);
+
+            mediaId = await uploadMediaForSending(dbTemplate.media_url, channel);
+
+            await TemplateModel.updateOne(
+              { _id: dbTemplate._id },
+              { $set: { media_id: mediaId } }
+            );
+          }
+
+          if (mediaId) {
+            header = {
+              type: "image" as const,
+              id: mediaId, // ✅ THIS IS THE FIX
+            };
+          }
+        }
+        // 🔥 FINAL CALL
+        const contact = await Contact.findById(session.contact_id).lean();
+        await whatsapp.sendTemplate(contact.phone, {
+          name: dbTemplate.name,
+          language: dbTemplate.language || "en_US",
+          header, // ✅ ADD THIS
+          body,
+        });
+
+        return moveNext();
       }
     }
 

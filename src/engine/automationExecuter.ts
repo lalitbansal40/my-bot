@@ -54,7 +54,7 @@ export interface IncomingMessage {
 interface RunAutomationParams {
   automation: AutomationDocument;
   session: any;
-  message: IncomingMessage;
+  message?: IncomingMessage;
   whatsapp: WhatsAppClient;
   updateSession: (data: any) => Promise<void>;
 }
@@ -69,7 +69,14 @@ export const runAutomation = async ({
   whatsapp,
   updateSession,
 }: RunAutomationParams) => {
-  const normalizedMessage = normalizeMessage(message);
+  const normalizedMessage = message
+    ? normalizeMessage(message)
+    : {
+      text: { body: "" },
+      interactive: undefined,
+      location: undefined,
+      from: session.contact_id,
+    };
   const text = normalizedMessage.text?.body?.toLowerCase();
 
   const RESET_KEYWORDS = ["restart", "start", "hi", "hello"];
@@ -93,8 +100,8 @@ export const runAutomation = async ({
     normalizedMessage.interactive?.button_reply
   ) {
     const buttonId = (
-      normalizedMessage.interactive.button_reply.id ||
-      normalizedMessage.interactive.button_reply.title ||
+      normalizedMessage.interactive?.button_reply.id ||
+      normalizedMessage.interactive?.button_reply.title ||
       ""
     ).trim();
 

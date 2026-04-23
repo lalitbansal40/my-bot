@@ -21,6 +21,7 @@ export type AutomationNodeType =
   | "address_message"
   | "call_to_action"
   | "api_request"
+  | "send_template"
   | "set_contact_attribute"
   | "list"
   | "payment_summary";
@@ -42,6 +43,7 @@ export interface AutomationNode {
   }[];
   url?: string;
 
+
   button_text?: string;
 
   /* =========================
@@ -54,6 +56,21 @@ export interface AutomationNode {
     id: string;
     title: string;
   }[];
+
+  template?: {
+    name: string;
+    language?: string;
+    header?: {
+      type: "image" | "video" | "document";
+      link: string;
+    };
+    body?: string[];
+    buttons?: {
+      type: "url" | "quick_reply";
+      text: string;
+      url?: string;
+    }[];
+  };
 
   media?: {
     type?: "image" | "video";
@@ -190,8 +207,34 @@ const AutomationNodeSchema = new Schema<AutomationNode>(
         "razorpay_payment",
         "borzo_delivery",
         "carousel",
+        "send_template",
       ],
       required: true,
+    },
+    template: {
+      name: { type: String },
+      language: { type: String, default: "en" },
+      header: {
+        type: {
+          type: String,
+          enum: ["image", "video", "document"],
+        },
+        link: String,
+      },
+      body: {
+        type: [String],
+        default: undefined,
+      },
+      buttons: {
+        type: [
+          {
+            type: { type: String },
+            text: String,
+            url: String,
+          },
+        ],
+        default: undefined,
+      },
     },
     sections: [
       {

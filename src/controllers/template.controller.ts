@@ -195,12 +195,11 @@ export const createTemplate = async (req: Request, res: Response) => {
       name,
       language,
       category,
-      header_format: headerFormat,
+      header_format: headerFormat, // ✅ fix
       media_url: mediaUrl,
-      media_handle: sanitizedComponents?.find((c) => c.type === "HEADER")
-        ?.example?.header_handle?.[0], // 🔥 ADD
-      components: sanitizedComponents,
-      channel_id: channel._id,
+      media_id: null,
+      components,
+      channel_id: channelId, // ✅ fix
     });
 
     return res.json({
@@ -623,6 +622,7 @@ export const sendTemplate = async (req: Request, res: Response) => {
     const { templateName, to, bodyParams } = req.body;
     const { channelId } = req.params;
 
+
     if (!templateName || !to) {
       return res.status(400).json({
         message: "templateName and to are required",
@@ -651,18 +651,33 @@ export const sendTemplate = async (req: Request, res: Response) => {
     const components: any[] = [];
 
     // 🔥 HEADER
-    if (template.header_format === "IMAGE" && template.media_handle) {
-      components.push({
-        type: "header",
-        parameters: [
-          {
-            type: "image",
-            image: {
-              id: template.media_handle, // 🔥 MAIN FIX
+    if (template.header_format === "IMAGE") {
+      let mediaId = template.media_id;
+
+      // 🔥 अगर DB में नहीं है → upload करो
+      if (!mediaId && template.media_url) {
+        mediaId = await uploadMediaForSending(template.media_url, channel);
+
+        // 🔥 DB में save कर दो
+        await TemplateModel.updateOne(
+          { _id: template._id },
+          { $set: { media_id: mediaId } }
+        );
+      }
+
+      if (mediaId) {
+        components.push({
+          type: "header",
+          parameters: [
+            {
+              type: "image",
+              image: {
+                id: mediaId,
+              },
             },
-          },
-        ],
-      });
+          ],
+        });
+      }
     }
 
     // 🔥 BODY
@@ -866,18 +881,33 @@ const sendTemplateInternal = async ({
   const components: any[] = [];
 
   // ✅ HEADER (only once)
-  if (template.header_format === "IMAGE" && template.media_handle) {
-    components.push({
-      type: "header",
-      parameters: [
-        {
-          type: "image",
-          image: {
-            id: template.media_handle, // 🔥 MAIN FIX
+  if (template.header_format === "IMAGE") {
+    let mediaId = template.media_id;
+
+    // 🔥 अगर DB में नहीं है → upload करो
+    if (!mediaId && template.media_url) {
+      mediaId = await uploadMediaForSending(template.media_url, channel);
+
+      // 🔥 DB में save कर दो
+      await TemplateModel.updateOne(
+        { _id: template._id },
+        { $set: { media_id: mediaId } }
+      );
+    }
+
+    if (mediaId) {
+      components.push({
+        type: "header",
+        parameters: [
+          {
+            type: "image",
+            image: {
+              id: mediaId,
+            },
           },
-        },
-      ],
-    });
+        ],
+      });
+    }
   }
 
   // ✅ BODY
@@ -1059,4 +1089,28 @@ export const getAllWhatsappFlows = async (req: AuthRequest, res: Response) => {
       message: "Failed to fetch flows",
     });
   }
+};
+
+
+export const uploadMediaForSending = async (fileUrl: string, channel: any) => {
+  const response = await axios.get(fileUrl, {
+    responseType: "stream",
+  });
+
+  const form = new FormData();
+  form.append("file", response.data);
+  form.append("messaging_product", "whatsapp");
+
+  const upload = await axios.post(
+    `https://graph.facebook.com/v19.0/${channel.phone_number_id}/media`,
+    form,
+    {
+      headers: {
+        Authorization: `Bearer ${channel.access_token}`,
+        ...form.getHeaders(),
+      },
+    }
+  );
+
+  return upload.data.id;
 };

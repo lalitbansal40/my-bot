@@ -61,9 +61,14 @@ export const reverseGeocode = async (
 };
 
 export const interpolate = (
-  template: string,
+  template: any,
   data: Record<string, any> = {},
 ) => {
+  // 🔥 SAFETY CHECK (MOST IMPORTANT)
+  if (!template || typeof template !== "string") {
+    return "";
+  }
+
   return template.replace(/{{(.*?)}}/g, (_, key) => {
     const k = key.trim();
 

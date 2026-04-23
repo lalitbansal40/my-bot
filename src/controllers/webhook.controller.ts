@@ -49,6 +49,14 @@ export const receiveMessage = async (req: Request, res: Response) => {
 
     const value = req.body?.entry?.[0]?.changes?.[0]?.value;
 
+    if (value?.calls) {
+      const handled = await handleCallEvent(value);
+
+      if (handled) {
+        return res.sendStatus(200); // ✅ stop further execution
+      }
+    }
+
     // ✅ STATUS UPDATE
     if (value?.statuses) {
       const statusObj = value.statuses[0];
@@ -261,9 +269,17 @@ export const receiveMessage = async (req: Request, res: Response) => {
     const whatsapp = createWhatsAppClient(channel, contact);
 
     // 🔥 INPUT DETECT (ONE TIME ONLY)
+    if (!message) {
+      return {
+        text: "",
+        inputId: null,
+        type: "call"
+      };
+    }
+
     const inputId =
-      message.interactive?.button_reply?.id ||
-      message.interactive?.list_reply?.id;
+      message?.interactive?.button_reply?.id ||
+      message?.interactive?.list_reply?.id;
 
     // ✅ SAVE INPUT
     if (inputId) {
@@ -371,6 +387,87 @@ export const receiveMessage = async (req: Request, res: Response) => {
   }
 };
 
-const extractCaption = (mediaObj: any) => {
-  return mediaObj?.caption || null;
+function getCallTrigger(call: any) {
+  if (call.event === "connect") {
+    return "call_started";
+  }
+
+  if (call.event === "terminate") {
+    if (call.status === "COMPLETED") {
+      return "call_completed";
+    } else {
+      return "call_missed";
+    }
+  }
+
+  return null;
+}
+
+
+export const handleCallEvent = async (value: any) => {
+  try {
+    if (!value?.calls) return false;
+
+    const call = value.calls[0];
+
+    const trigger = getCallTrigger(call);
+    if (!trigger) return true;
+
+    const phoneNumberId = value.metadata.phone_number_id;
+    const from = call.from;
+
+    const channel = await Channel.findOne({
+      phone_number_id: phoneNumberId,
+      is_active: true,
+    });
+
+    if (!channel) return true;
+
+    const contact = await Contact.findOneAndUpdate(
+      { channel_id: channel._id, phone: from },
+      { $set: { name: value.contacts?.[0]?.profile?.name } },
+      { upsert: true, new: true }
+    );
+
+    const automation = await Automation.findOne({
+      channel_id: channel._id,
+      trigger: trigger,
+      status: "active",
+    });
+
+    if (!automation) return true;
+
+    const whatsapp = createWhatsAppClient(channel, contact);
+
+    const session = {
+      contact_id: contact._id,
+      current_node: "start",
+      waiting_for: null,
+      data: {},
+    };
+
+    await Contact.updateOne(
+      { _id: contact._id },
+      {
+        $set: {
+          attributes: {
+            waiting_for: null,
+            automation_id: automation._id,
+          },
+        },
+      }
+    );
+
+    await runAutomation({
+      automation,
+      session,
+      whatsapp,
+      updateSession: async () => { },
+    });
+
+    return true;
+  } catch (error) {
+    console.error("❌ handleCallEvent error", error);
+    return true;
+  }
 };

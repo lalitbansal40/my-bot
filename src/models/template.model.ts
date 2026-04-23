@@ -6,14 +6,14 @@ const templateSchema = new mongoose.Schema(
     language: { type: String, required: true },
     category: { type: String, required: true },
 
-    // 🔥 important fields
+    // 🔥 HEADER CONFIG
     header_format: { type: String }, // IMAGE | VIDEO | DOCUMENT | TEXT
-    media_url: { type: String }, // S3 URL
-    media_handle: String,
 
-    // optional (future use)
-    media_id: { type: String }, // for faster sending (optional)
+    // 🔥 MEDIA (only ONE source of truth)
+    media_id: { type: String }, // ✅ Meta media id (BEST)
+    media_url: { type: String }, // optional fallback (S3)
 
+    // 🔥 TEMPLATE STRUCTURE
     components: { type: Array, required: true },
 
     channel_id: {
