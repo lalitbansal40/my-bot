@@ -3,20 +3,39 @@ import mongoose, { Schema, Document } from "mongoose";
 export type MessageDirection = "IN" | "OUT";
 
 export type MessageStatus =
-  | "PENDING" // saved, not yet sent
-  | "SENT" // WhatsApp accepted
-  | "DELIVERED" // delivered to user
-  | "READ" // user read
-  | "FAILED"; // API error / webhook error
+  | "PENDING"
+  | "SENT"
+  | "DELIVERED"
+  | "READ"
+  | "FAILED"
+  | "CALL_INITIATED"
+  | "CALL_RINGING"
+  | "CALL_COMPLETED"
+  | "CALL_FAILED"
+  | "CALL_NO_ANSWER"
+  | "CALL_BUSY"
+  | "CALL_REJECTED";
 
 export type MessageType =
   | "text"
   | "button"
   | "flow"
+  | "list"
+  | "interactive"
   | "template"
   | "image"
   | "document"
   | "location"
+  | "contact"
+  | "sticker"
+  | "video"
+  | "audio"
+  | "vcard"
+  | "poll"
+  | "reaction"
+  | "location"
+
+  | "call" // 🔥 ADD THIS
   | "unknown";
 
 export interface MessageDocument extends Document {
@@ -25,20 +44,38 @@ export interface MessageDocument extends Document {
 
   direction: MessageDirection;
   type: MessageType;
-  text: { type: String };
 
-  media: {
-    url: String;
-    mime_type: String;
-    filename: String;
+  text?: string;
+
+  media?: {
+    url?: string;
+    mime_type?: string;
+    filename?: string;
   };
 
   status: MessageStatus;
 
-  wa_message_id?: string; // WhatsApp message id
-  payload: Record<string, any>; // 🔥 full raw message
+  wa_message_id?: string;
+  payload: Record<string, any>;
 
-  error?: string;
+  // 🔥 CALL DATA (NEW)
+  call?: {
+    call_id: string;
+    from: string;
+    to: string;
+    direction: string;
+    event: string;
+    status: string;
+    timestamp: number;
+    duration?: number;
+  };
+
+  error?: {
+    code?: number;
+    message?: string;
+    details?: string;
+  };
+
   reply_to?: string | null;
 
   createdAt: Date;
@@ -52,20 +89,60 @@ const MessageSchema = new Schema<MessageDocument>(
     contact_id: { type: Schema.Types.ObjectId, ref: "Contact", index: true },
 
     direction: { type: String, enum: ["IN", "OUT"], required: true },
-    type: { type: String, required: true },
+
+    type: {
+      type: String,
+      enum: [
+        "text",
+        "button",
+        "flow",
+        "template",
+        "image",
+        "document",
+        "location",
+        "list",
+        "interactive",
+        "call", // 🔥
+        "unknown",
+        "contact",
+        "sticker",
+        "video",
+        "audio",
+        "vcard",
+        "poll",
+        "reaction",
+        "location",
+      ],
+      required: true,
+    },
 
     is_read: {
       type: Boolean,
       default: false,
     },
+
     status: {
       type: String,
-      enum: ["PENDING", "SENT", "DELIVERED", "READ", "FAILED"],
+      enum: [
+        "PENDING",
+        "SENT",
+        "DELIVERED",
+        "READ",
+        "FAILED",
+        "CALL_INITIATED",
+        "CALL_RINGING",
+        "CALL_COMPLETED",
+        "CALL_FAILED",
+        "CALL_NO_ANSWER",
+        "CALL_BUSY",
+        "CALL_REJECTED",
+      ],
       default: "PENDING",
       index: true,
     },
 
-    wa_message_id: { type: String },
+    wa_message_id: { type: String, index: true },
+
     text: { type: String },
 
     media: {
@@ -75,6 +152,19 @@ const MessageSchema = new Schema<MessageDocument>(
     },
 
     payload: { type: Schema.Types.Mixed, required: true },
+
+    // 🔥 NEW FIELD
+    call: {
+      call_id: String,
+      from: String,
+      to: String,
+      direction: String,
+      event: String,
+      status: String,
+      timestamp: Number,
+      duration: Number,
+    },
+
     reply_to: {
       type: String,
       default: null,
@@ -86,10 +176,18 @@ const MessageSchema = new Schema<MessageDocument>(
       details: String,
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
+
+// 🔥 INDEXES
 MessageSchema.index({ contact_id: 1, createdAt: -1 });
-MessageSchema.index({ wa_message_id: 1 });
+
+// 🔥 UNIQUE (VERY IMPORTANT FOR DUPLICATE)
+MessageSchema.index(
+  { wa_message_id: 1 },
+  { unique: true, sparse: true }
+);
+
 const Message =
   mongoose.models.Message ||
   mongoose.model<MessageDocument>("Message", MessageSchema);

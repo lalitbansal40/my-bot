@@ -995,13 +995,21 @@ export const syncTemplates = async (req: Request, res: Response) => {
         headers: {
           Authorization: `Bearer ${channel.access_token}`,
         },
-      },
+      }
     );
 
     const templates = response.data.data;
 
-    // 🔥 2. LOOP & UPSERT
+    console.log("templates :: ",JSON.stringify(templates))
+    // 🔥 Keep track of meta template names
+    const metaTemplateNames: string[] = [];
+
+    // 🔥 2. UPSERT ALL META TEMPLATES
     for (const t of templates) {
+      metaTemplateNames.push(t.name);
+
+      const header = t.components?.find((c: any) => c.type === "HEADER");
+
       await TemplateModel.findOneAndUpdate(
         {
           name: t.name,
@@ -1015,22 +1023,27 @@ export const syncTemplates = async (req: Request, res: Response) => {
           status: t.status,
           channel_id: channel._id,
 
-          // 🔥 HEADER EXTRACTION
-          header_format:
-            t.components?.find((c: any) => c.type === "HEADER")?.format || null,
+          // 🔥 HEADER
+          header_format: header?.format || null,
 
-          media_url:
-            t.components?.find((c: any) => c.type === "HEADER")?.example
-              ?.header_handle?.[0] || null,
+          // 🔥 MEDIA (IMPROVED)
+          media_id: header?.example?.header_handle?.[0] || null,
+          media_url: header?.example?.header_handle?.[0] || null,
         },
-        { upsert: true, new: true },
+        { upsert: true, new: true }
       );
     }
+
+    // 🔥 3. DELETE LOCAL TEMPLATES जो Meta में नहीं हैं
+    await TemplateModel.deleteMany({
+      channel_id: channel._id,
+      name: { $nin: metaTemplateNames },
+    });
 
     return res.json({
       success: true,
       total: templates.length,
-      message: "Templates synced successfully 🚀",
+      message: "Templates fully synced (add/update/delete) 🚀",
     });
   } catch (err: any) {
     console.error("SYNC TEMPLATE ERROR:", err?.response?.data || err.message);

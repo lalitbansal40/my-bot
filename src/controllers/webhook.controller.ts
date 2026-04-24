@@ -385,32 +385,39 @@ export const receiveMessage = async (req: Request, res: Response) => {
 };
 
 function getCallTrigger(call: any) {
-  // ❌ CONNECT IGNORE
+  // ❌ Only process terminate events
   if (call.event !== "terminate") return null;
 
-  // ✅ ONLY TERMINATE HANDLE
-  if (call.status === "COMPLETED") {
+  const status = call.status?.toUpperCase();
+
+  // ✅ Call completed
+  if (status === "COMPLETED") {
     return "call_completed";
   }
 
-  return "call_missed";
+  // ✅ Proper missed cases
+  if (["NO_ANSWER", "FAILED", "BUSY", "REJECTED"].includes(status)) {
+    return "call_missed";
+  }
+
+  // ❌ Ignore unknown
+  return null;
 }
 
-const processedCalls = new Set<string>();
 export const handleCallEvent = async (value: any) => {
   try {
     if (!value?.calls) return false;
 
     const call = value.calls[0];
+    const callId = call.id;
 
-    // 🔥 DUPLICATE रोकने के लिए
-    if (processedCalls.has(call.id)) {
+    // 🔥 DB check
+    const existing = await Message.findOne({ wa_message_id: callId });
+
+    if (existing) {
+      console.log("🚫 Duplicate call webhook blocked (DB)");
       return true;
     }
-    processedCalls.add(call.id);
-
-    // cleanup
-    setTimeout(() => processedCalls.delete(call.id), 10000);
 
     const trigger = getCallTrigger(call);
     if (!trigger) return true;
@@ -459,6 +466,34 @@ export const handleCallEvent = async (value: any) => {
         },
       }
     );
+
+
+    await Message.create({
+      channel_id: channel._id,
+      contact_id: contact._id,
+
+      direction: "IN",
+      type: "call",
+
+      status:
+        call.status === "COMPLETED"
+          ? "CALL_COMPLETED"
+          : "CALL_" + call.status,
+
+      wa_message_id: call.id,
+
+      call: {
+        call_id: call.id,
+        from: call.from,
+        to: call.to,
+        direction: call.direction,
+        event: call.event,
+        status: call.status,
+        timestamp: call.timestamp,
+      },
+
+      payload: call,
+    });
 
     await runAutomation({
       automation,
