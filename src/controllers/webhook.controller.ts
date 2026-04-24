@@ -396,21 +396,12 @@ function getCallTrigger(call: any) {
   return "call_missed";
 }
 
-const processedCalls = new Set<string>();
 export const handleCallEvent = async (value: any) => {
   try {
     if (!value?.calls) return false;
 
     const call = value.calls[0];
 
-    // 🔥 DUPLICATE रोकने के लिए
-    if (processedCalls.has(call.id)) {
-      return true;
-    }
-    processedCalls.add(call.id);
-
-    // cleanup
-    setTimeout(() => processedCalls.delete(call.id), 60000);
 
     const trigger = getCallTrigger(call);
     if (!trigger) return true;
