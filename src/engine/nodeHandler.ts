@@ -851,41 +851,71 @@ export const executeNode = async ({
         ...contact.attributes,
       };
 
-      const key = node.config.key;
-      let value = node.config.value;
+      // 🔥 SUPPORT SINGLE + MULTIPLE
+      const keys = Array.isArray(node.config.key)
+        ? node.config.key
+        : [node.config.key];
 
-      if (typeof value === "string") {
-        value = interpolate(value, context);
-      }
+      const values = Array.isArray(node.config.value)
+        ? node.config.value
+        : [node.config.value];
 
+      const updateData: Record<string, any> = {};
+      let firstValue: any = null;
+
+      keys.forEach((key: string, index: number) => {
+        let value = values[index];
+
+        // 🔥 HANDLE {{variable}} vs direct value
+        if (
+          typeof value === "string" &&
+          value.includes("{{") &&
+          value.includes("}}")
+        ) {
+          value = interpolate(value, context);
+        }
+
+        // 🔥 SAVE FOR DB
+        updateData[`attributes.${key}`] = value;
+
+        // 🔥 SAVE IN SESSION
+        session.data[key] = value;
+
+        // 🔥 CAPTURE FIRST VALUE FOR FLOW
+        if (firstValue === null) {
+          firstValue = value;
+        }
+
+        console.log(`✅ Set ${key} =`, value);
+      });
+
+      // 🔥 UPDATE CONTACT
       await Contact.updateOne(
         { _id: session.contact_id },
         {
-          $set: {
-            [`attributes.${key}`]: value,
-          },
+          $set: updateData,
         }
       );
 
+      // 🔥 UPDATE SESSION
       await updateSession({
         data: {
           ...session.data,
-          [key]: value,
         },
       });
 
-      console.log(`✅ Saved attribute ${key} =`, value);
+      // 🔥 SAFE INPUT ID (NO TS ERROR)
+      const inputId =
+        firstValue !== null && firstValue !== undefined
+          ? String(firstValue)
+          : "";
 
-      // 🔥 FIX START
-      // 🔥 यही latest value है (JAIPUR, DELHI, etc.)
-      const inputId = value;
-
+      // 🔥 ROUTING
       const nextNodeId = getNextNodeId(
         automation.edges,
         node.id,
         inputId
       );
-      // 🔥 FIX END
 
       if (!nextNodeId) return;
 

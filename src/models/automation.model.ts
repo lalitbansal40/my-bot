@@ -33,6 +33,10 @@ export interface AutomationNode {
   ========================= */
   id: string;
   type: AutomationNodeType;
+  position?: {
+    x: number;
+    y: number;
+  };
   sections?: {
     title: string;
     rows: {
@@ -192,6 +196,10 @@ export interface AutomationDocument extends Document {
 const AutomationNodeSchema = new Schema<AutomationNode>(
   {
     id: { type: String, required: true },
+    position: {
+      x: { type: Number, default: 0 },
+      y: { type: Number, default: 0 },
+    },
 
     type: {
       type: String,
