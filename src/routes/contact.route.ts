@@ -39,7 +39,7 @@ router.get(
 );
 
 // Update contact
-router.patch(
+router.put(
   "/:contactId",
   authMiddleware,
   updateContact

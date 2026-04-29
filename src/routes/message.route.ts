@@ -13,7 +13,7 @@ const router = express.Router();
 
 router.get("/:contactId", authMiddleware, getMessagesByContact);
 router.post("/send-text", authMiddleware, subscriptionGuard, sendTextMessage);
-router.patch(
+router.put(
   "/read/:contactId",
   authMiddleware,
   subscriptionGuard,
