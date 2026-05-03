@@ -112,6 +112,12 @@ const MessageSchema = new Schema<MessageDocument>(
         "poll",
         "reaction",
         "location",
+        "carousel",
+        "cta_url",
+        "address_message",
+        "product_list",
+        "single_product",
+        "location_request"
       ],
       required: true,
     },

@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import axios from "axios";
 import { Channel } from "../models/channel.model";
-import { uploadToS3V2 } from "../services/s3v2.service";
+import { uploadToS3V2, uploadToS3Stream } from "../services/s3v2.service";
+import fs from "fs";
 import FormData from "form-data";
 import { TemplateModel } from "../models/template.model";
 import Contact from "../models/contact.model";
@@ -557,21 +558,24 @@ export const deleteTemplate = async (req: Request, res: Response) => {
 };
 
 export const uploadMediaController = async (req: Request, res: Response) => {
+  const file = req.file;
+  console.log("Received file:", file);
+  if (!file) return res.status(400).json({ message: "File required" });
+
   try {
-    const file = req.file;
-
-    if (!file) {
-      return res.status(400).json({ message: "File required" });
-    }
-
-    const url = await uploadToS3V2(file.buffer, file.mimetype);
-
-    return res.json({
-      success: true,
-      url,
-    });
+    const url = await uploadToS3V2(
+      file.buffer,
+      file.mimetype
+    );
+    return res.json({ success: true, url });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
+  } finally {
+    if (file?.path) {
+      fs.unlink(file.path, (err) => {
+        if (err) console.error("unlink error:", err);
+      });
+    }
   }
 };
 
@@ -810,8 +814,9 @@ export const sendBulkTemplate = async (req: Request, res: Response) => {
 
     // ✅ FROM CSV
     if (req.file) {
-      const rows: any = await parseCSV(req.file.buffer);
+      const rows: any = await parseCSV(req.file.path);
       phoneNumbers = rows.map((r: any) => r.phone);
+      fs.unlink(req.file.path, () => { });
     }
 
     // ✅ REMOVE DUPLICATES
@@ -1000,7 +1005,7 @@ export const syncTemplates = async (req: Request, res: Response) => {
 
     const templates = response.data.data;
 
-    console.log("templates :: ",JSON.stringify(templates))
+    console.log("templates :: ", JSON.stringify(templates))
     // 🔥 Keep track of meta template names
     const metaTemplateNames: string[] = [];
 

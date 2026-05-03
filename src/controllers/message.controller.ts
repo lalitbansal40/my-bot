@@ -10,6 +10,7 @@ import { convertToMp3 } from "../helpers/audioConvertor";
 import { convertToMp4 } from "../helpers/videoConvertor";
 import heicConvert from "heic-convert";
 import { pushToAccount } from "../services/wsHelper";
+import fs from "fs";
 /* ================================
    Attach Reply Messages
 ================================ */
@@ -305,7 +306,7 @@ export const sendMediaMessage = async (req: Request, res: Response) => {
          🔥 1. HANDLE MIME + BUFFER
       ========================================= */
       let mimeType = file.mimetype;
-      let buffer = file.buffer;
+      let buffer: Buffer = file.buffer ?? fs.readFileSync(file.path);
       let filename = file.originalname;
 
       /* =========================================
@@ -362,7 +363,9 @@ export const sendMediaMessage = async (req: Request, res: Response) => {
       /* =========================================
          🔥 2. UPLOAD TO S3 (FIXED)
       ========================================= */
-      const url = await uploadToS3(buffer, mimeType); // ✅ IMPORTANT FIX
+      const url = await uploadToS3(buffer, mimeType);
+      buffer = Buffer.alloc(0); // free buffer from RAM immediately after upload
+      if (file.path) fs.unlink(file.path, () => {}); // cleanup temp file
 
       /* =========================================
          🔥 3. DETECT TYPE

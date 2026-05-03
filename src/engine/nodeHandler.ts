@@ -153,22 +153,37 @@ export const executeNode = async ({
       if (node.media?.url) {
         console.log("Sending media with URL:", node.media.url);
 
-        await whatsapp.sendInteractiveMedia(from, {
-          type: node.media.type || "image",
-          url: node.media.url,
-          caption: text,
-          buttons: node.buttons || [],
-        });
+        const hasButtons = node.buttons && node.buttons.length > 0;
 
-        if (node.buttons?.length) {
+        if (hasButtons) {
+          // ✅ interactive media (valid case)
+          const buttons = node.buttons ?? [];
+
+          if (buttons.length > 0) {
+            await whatsapp.sendInteractiveMedia(from, {
+              type: node.media.type || "image",
+              url: node.media.url,
+              caption: text,
+              buttons, // ✅ safe
+            });
+          }
+
           await updateSession({
             current_node: node.id,
             waiting_for: "button",
           });
-          return;
-        }
 
-        return moveNext();
+          return;
+        } else {
+          // ✅ normal media (IMPORTANT FIX)
+          await whatsapp.sendMedia(from, {
+            type: node.media.type || "image",
+            url: node.media.url,
+            caption: text,
+          });
+
+          return moveNext();
+        }
       }
 
       // =========================

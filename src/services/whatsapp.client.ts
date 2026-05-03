@@ -11,6 +11,14 @@ export interface WhatsAppButton {
 export interface WhatsAppClient {
   sendText(to: string, text: string): Promise<void>;
   requestLocation(to: string, text: string): Promise<void>;
+  sendMedia(
+    to: string,
+    payload: {
+      type: "image" | "video" | "document";
+      url: string;
+      caption?: string;
+    }
+  ): Promise<void>;
   sendTemplate(
     to: string,
     payload: {
@@ -142,7 +150,7 @@ export const createWhatsAppClient = (
 
   // Push wa_message_id + status back to frontend so ticks can update
   const notifyUpdate = (msgId: any, update: { wa_message_id?: string; status: string; error?: any }) => {
-    if (accountId) pushToAccount(accountId, { type: "message_update", _id: msgId.toString(), ...update }).catch(() => {});
+    if (accountId) pushToAccount(accountId, { type: "message_update", _id: msgId.toString(), ...update }).catch(() => { });
   };
 
   return {
@@ -166,7 +174,7 @@ export const createWhatsAppClient = (
           type: "text",
         },
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         // 2️⃣ SEND TO WHATSAPP
@@ -240,7 +248,7 @@ export const createWhatsAppClient = (
         payload,
         is_read: true,
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         const components: any[] = [];
@@ -355,7 +363,7 @@ export const createWhatsAppClient = (
         payload,
         is_read: true,
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         const res = await api.post("/messages", {
@@ -435,7 +443,7 @@ export const createWhatsAppClient = (
         payload: { text },
         is_read: true,
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         const res = await api.post("/messages", {
@@ -495,7 +503,7 @@ export const createWhatsAppClient = (
         payload: data,
         is_read: true,
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         // 🔥 TRY REAL MEDIA CAROUSEL FIRST
@@ -648,7 +656,7 @@ export const createWhatsAppClient = (
         payload: { flowId, options },
         is_read: true,
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         const res = await api.post("/messages", {
@@ -731,12 +739,12 @@ export const createWhatsAppClient = (
         channel_id: channel._id,
         contact_id: contact._id,
         direction: "OUT",
-        type: "interactive_media",
+        type: "interactive",
         status: "PENDING",
         payload,
         is_read: true,
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         const res = await api.post("/messages", {
@@ -816,7 +824,7 @@ export const createWhatsAppClient = (
         payload: { bodyText, buttons },
         is_read: true,
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         const safeButtons = buttons.slice(0, 3);
@@ -897,7 +905,7 @@ export const createWhatsAppClient = (
           type: "address_message",
         },
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         // 2️⃣ SEND TO WHATSAPP
@@ -967,7 +975,7 @@ export const createWhatsAppClient = (
         payload: { bodyText, buttonText, url },
         is_read: true,
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         const res = await api.post("/messages", {
@@ -1033,7 +1041,7 @@ export const createWhatsAppClient = (
         payload,
         is_read: true,
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         const res = await api.post("/messages", {
@@ -1086,7 +1094,7 @@ export const createWhatsAppClient = (
         payload,
         is_read: true,
       });
-      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => { });
 
       try {
         const res = await api.post("/messages", {
@@ -1120,5 +1128,68 @@ export const createWhatsAppClient = (
         logError("sendSingleProduct", e);
       }
     },
+    async sendMedia(to: string, payload: {
+      type: "image" | "video" | "document";
+      url: string;
+      caption?: string;
+    }) {
+      const msg = await Message.create({
+        channel_id: channel._id,
+        contact_id: contact._id,
+        direction: "OUT",
+        type: payload.type,
+        status: "PENDING",
+        payload,
+        is_read: true,
+      });
+
+      if (accountId) {
+        pushToAccount(accountId, {
+          type: "new_message",
+          channel_id: channel._id,
+          contact_id: contact._id,
+          message: msg.toObject(),
+        }).catch(() => { });
+      }
+
+      try {
+        const res = await api.post("/messages", {
+          messaging_product: "whatsapp",
+          to,
+          type: payload.type,
+          [payload.type]: {
+            link: payload.url,
+            caption: payload.caption,
+          },
+        });
+
+        const waId = res.data?.messages?.[0]?.id;
+
+        await Message.updateOne(
+          { _id: msg._id },
+          {
+            status: "SENT",
+            wa_message_id: waId,
+          }
+        );
+
+        notifyUpdate(msg._id, {
+          wa_message_id: waId,
+          status: "SENT",
+        });
+
+      } catch (e: any) {
+        await Message.updateOne(
+          { _id: msg._id },
+          {
+            status: "FAILED",
+            error: JSON.stringify(e?.response?.data || e?.message),
+          }
+        );
+
+        notifyUpdate(msg._id, { status: "FAILED" });
+        logError("sendMedia", e);
+      }
+    }
   };
 };

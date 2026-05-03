@@ -3,10 +3,13 @@ import fs from "fs";
 import multer from "multer";
 import xlsx from "xlsx";
 import { Readable } from "stream";
+import os from "os";
 
-// ✅ FIX: memory storage (Lambda safe)
 export const contactUpload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: os.tmpdir(),
+    filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+  }),
 });
 
 // ✅ UPDATED: buffer support
@@ -39,22 +42,25 @@ export const parseFile = async (
     }
   }
 
-  // 🔁 FALLBACK (local only)
   if (input && typeof input === "string") {
-    if (ext === "csv") {
-      await new Promise((resolve, reject) => {
-        fs.createReadStream(input)
-          .pipe(csv())
-          .on("data", (row) => data.push(row))
-          .on("end", resolve)
-          .on("error", reject);
-      });
-    }
+    try {
+      if (ext === "csv") {
+        await new Promise((resolve, reject) => {
+          fs.createReadStream(input)
+            .pipe(csv())
+            .on("data", (row) => data.push(row))
+            .on("end", resolve)
+            .on("error", reject);
+        });
+      }
 
-    if (ext === "xlsx") {
-      const workbook = xlsx.readFile(input);
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      data = xlsx.utils.sheet_to_json(sheet);
+      if (ext === "xlsx") {
+        const workbook = xlsx.readFile(input);
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        data = xlsx.utils.sheet_to_json(sheet);
+      }
+    } finally {
+      fs.unlink(input, () => {}); // cleanup temp file
     }
   }
 

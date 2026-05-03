@@ -36,7 +36,8 @@ export async function connectMongo(): Promise<typeof mongoose> {
   if (!cached.promise) {
     cached.promise = mongoose
       .connect(MONGODB_URI, {
-        bufferCommands: false, // IMPORTANT for Lambda
+        bufferCommands: false,
+        maxPoolSize: 5,
       })
       .then((mongooseInstance) => {
         console.log("✅ MongoDB connected");

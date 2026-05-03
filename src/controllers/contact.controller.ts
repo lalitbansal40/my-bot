@@ -317,17 +317,12 @@ export const importContacts = async (req: any, res: any) => {
       return res.status(400).json({ message: "File required" });
     }
 
-    // 🔥 handle both cases (disk + memory)
     let rows: any[] = [];
 
-    if (req.file.buffer) {
-    } else if (req.file.path) {
+    if (req.file.path) {
       rows = await parseFile(req.file.path, req.file.originalname);
     } else {
-      return res.status(400).json({
-        success: false,
-        message: "File not found",
-      });
+      return res.status(400).json({ success: false, message: "File not found" });
     }
 
     const seen = new Set();

@@ -1,6 +1,8 @@
 import express, { Request, Response } from "express";
 import dotenv from "dotenv";
-import serverless from "serverless-http";
+import http from "http";
+import { WebSocketServer } from "ws";
+import { addLocalConnection, removeLocalConnection } from "./services/localWsStore";
 
 import webhookRoutes from "./routes/webhook.route";
 import channelRoutes from "./routes/channel.routes";
@@ -16,14 +18,10 @@ import mediaRoutes from "./routes/media.routes";
 import metaRoutes from "./routes/meta.route";
 import catalogRoutes from "./routes/catalog.routes";
 
-
-
-
 import { connectMongo } from "./database/mongodb";
 import cors from "cors";
-if (process.env.IS_LOCAL === "true" || !process.env.LAMBDA_TASK_ROOT) {
-  dotenv.config();
-}
+
+dotenv.config();
 
 const app = express();
 
@@ -31,6 +29,16 @@ const app = express();
 🔥 CORS FIX (STRONG)
 ========================= */
 app.use(cors());
+
+setInterval(() => {
+  const used = process.memoryUsage();
+
+  console.log("🧠 RAM Usage:");
+  console.log(`RSS: ${(used.rss / 1024 / 1024).toFixed(2)} MB`);
+  console.log(`Heap Used: ${(used.heapUsed / 1024 / 1024).toFixed(2)} MB`);
+  console.log(`Heap Total: ${(used.heapTotal / 1024 / 1024).toFixed(2)} MB`);
+  console.log("-----------------------------");
+}, 10000);
 
 /* =========================
 🔹 RAW BODY
@@ -99,77 +107,34 @@ app.get("/", (_req: Request, res: Response) => {
 });
 
 /* =========================
-🔹 LOCAL SERVER
+🔹 SERVER START (HTTP + WebSocket)
 ========================= */
-const isLocal = process.env.IS_LOCAL === "true";
+const PORT = process.env.PORT || 5005;
 
-if (isLocal) {
-  connectMongo();
-  console.log("✅ MongoDB connected (local)");
+const httpServer = http.createServer(app);
+const wss = new WebSocketServer({ server: httpServer });
 
-  const { WebSocketServer } = require("ws");
-  const { addLocalConnection, removeLocalConnection } = require("./services/localWsStore");
-  const http = require("http");
+wss.on("connection", (ws: any, req: any) => {
+  const url = new URL(req.url, `http://localhost`);
+  const accountId = url.searchParams.get("accountId");
 
-  const httpServer = http.createServer(app);
-  const wss = new WebSocketServer({ server: httpServer });
-
-  wss.on("connection", (ws: any, req: any) => {
-    const url = new URL(req.url, "http://localhost");
-    const accountId = url.searchParams.get("accountId");
-
-    if (!accountId) {
-      ws.close(1008, "accountId required");
-      return;
-    }
-
-    addLocalConnection(accountId, ws);
-    console.log(`✅ WS connected: accountId=${accountId}`);
-
-    ws.on("close", () => {
-      removeLocalConnection(accountId, ws);
-      console.log(`❌ WS disconnected: accountId=${accountId}`);
-    });
-  });
-
-  httpServer.listen(5005, () => {
-    console.log("✅ HTTP  → http://localhost:5005");
-    console.log("✅ WS    → ws://localhost:5005");
-  });
-}
-/* =========================
-🔹 LAMBDA HANDLER
-========================= */
-const serverHandler = serverless(app);
-
-export const handler = async (event: any, context: any) => {
-  context.callbackWaitsForEmptyEventLoop = false;
-
-  // 🔥 CRITICAL FIX: preflight
-  if (event.requestContext?.http?.method === "OPTIONS") {
-    return {
-      statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "OPTIONS,GET,POST,PUT,DELETE",
-      },
-      body: "",
-    };
+  if (!accountId) {
+    ws.close(1008, "accountId required");
+    return;
   }
 
-  const response = (await serverHandler(event, context)) as any;
+  addLocalConnection(accountId, ws);
+  console.log(`✅ WS connected: accountId=${accountId}`);
 
-  // 🔥 Force CORS in ALL responses
-  return {
-    ...response,
-    headers: {
-      ...(response.headers || {}),
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Access-Control-Allow-Methods": "OPTIONS,GET,POST,PUT,DELETE",
-    },
-  };
-};
+  ws.on("close", () => {
+    removeLocalConnection(accountId, ws);
+    console.log(`❌ WS disconnected: accountId=${accountId}`);
+  });
+});
+
+httpServer.listen(PORT, () => {
+  console.log(`✅ HTTP → http://localhost:${PORT}`);
+  console.log(`✅ WS   → ws://localhost:${PORT}`);
+});
 
 export const server = app;
