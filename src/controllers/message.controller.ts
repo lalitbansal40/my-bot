@@ -228,16 +228,6 @@ export const sendTextMessage = async (req: Request, res: Response) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Real-time push to connected frontend clients (non-blocking)
-    if (message) {
-      pushToAccount(channel.account_id.toString(), {
-        type: "new_message",
-        channel_id: channelId,
-        contact_id: contactId,
-        message,
-      }).catch(() => {});
-    }
-
     return res.status(200).json({
       success: true,
       data: message,
@@ -342,7 +332,7 @@ export const sendMediaMessage = async (req: Request, res: Response) => {
 ========================================= */
       if (mimeType.includes("audio")) {
         console.log("🎤 Converting audio to mp3...");
-        buffer = await convertToMp3(file.buffer);
+        buffer = await convertToMp3(buffer);
         mimeType = "audio/mpeg";
         filename = `${Date.now()}.mp3`;
       }

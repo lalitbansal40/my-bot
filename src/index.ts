@@ -30,16 +30,6 @@ const app = express();
 ========================= */
 app.use(cors());
 
-setInterval(() => {
-  const used = process.memoryUsage();
-
-  console.log("🧠 RAM Usage:");
-  console.log(`RSS: ${(used.rss / 1024 / 1024).toFixed(2)} MB`);
-  console.log(`Heap Used: ${(used.heapUsed / 1024 / 1024).toFixed(2)} MB`);
-  console.log(`Heap Total: ${(used.heapTotal / 1024 / 1024).toFixed(2)} MB`);
-  console.log("-----------------------------");
-}, 10000);
-
 /* =========================
 🔹 RAW BODY
 ========================= */
