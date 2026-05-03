@@ -10,6 +10,7 @@ import Message from "../models/message.model";
 import axios from "axios";
 import { getNextNodeId } from "../engine/grapht";
 import { uploadFromUrlToS3 } from "../services/s3v2.service";
+import { pushToAccount } from "../services/wsHelper";
 dotenv.config({ path: path.join(".env") });
 
 /* =====================================================
@@ -111,7 +112,24 @@ export const receiveMessage = async (req: Request, res: Response) => {
         };
       }
 
-      await Message.updateOne({ wa_message_id: statusObj.id }, updateData);
+      const updatedMsg = await Message.findOneAndUpdate(
+        { wa_message_id: statusObj.id },
+        updateData,
+        { new: false, lean: true, projection: { channel_id: 1, contact_id: 1 } }
+      ) as any;
+
+      if (updatedMsg) {
+        const msgChannel = await Channel.findById(updatedMsg.channel_id, "account_id").lean() as any;
+        if (msgChannel) {
+          pushToAccount(msgChannel.account_id.toString(), {
+            type: "message_status",
+            wa_message_id: statusObj.id,
+            status: statusObj.status.toUpperCase(),
+            contact_id: updatedMsg.contact_id,
+          }).catch(() => {});
+        }
+      }
+
       return res.sendStatus(200);
     }
 
@@ -133,7 +151,10 @@ export const receiveMessage = async (req: Request, res: Response) => {
     const waId: string = value.contacts?.[0]?.wa_id || from;
     const contact = await Contact.findOneAndUpdate(
       { channel_id: channel._id, phone: from },
-      { $set: { name: value.contacts?.[0]?.profile?.name } },
+      {
+        $set: { name: value.contacts?.[0]?.profile?.name },
+        $inc: { unread_count: 1 },
+      },
       { upsert: true, new: true }
     );
 
@@ -167,16 +188,17 @@ export const receiveMessage = async (req: Request, res: Response) => {
         waiting_for: null,
       };
     }
+    let savedMessage: any;
     try {
-      await Message.create({
+      savedMessage = await Message.create({
         channel_id: channel._id,
         contact_id: contact._id,
 
         direction: "IN",
-        type: "text",
+        type: message.type === "interactive" ? "interactive" : "text",
 
         wa_message_id: message.id,
-        text: message.text?.body || "",
+        text: message.text?.body || message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || "",
 
         payload: message, // 🔥 full raw message
 
@@ -186,6 +208,35 @@ export const receiveMessage = async (req: Request, res: Response) => {
       console.log("⚠️ Duplicate prevented (DB)");
       return res.sendStatus(200);
     }
+
+    // Enrich message for WS push (same format as API response)
+    const msgObj: any = savedMessage.toObject();
+    msgObj.text = msgObj.text ||
+      msgObj.payload?.text?.body ||
+      msgObj.payload?.interactive?.button_reply?.title ||
+      msgObj.payload?.interactive?.list_reply?.title ||
+      "";
+
+    const contextId = message.context?.id;
+    if (contextId) {
+      const repliedMsg = await Message.findOne({ wa_message_id: contextId, contact_id: contact._id }).lean() as any;
+      msgObj.reply_message = repliedMsg ? {
+        _id: repliedMsg._id,
+        type: repliedMsg.type,
+        text: repliedMsg.text || repliedMsg.payload?.text?.body || repliedMsg.payload?.bodyText || repliedMsg.payload?.caption || repliedMsg.payload?.interactive?.button_reply?.title || repliedMsg.payload?.interactive?.list_reply?.title || "Message",
+        payload: repliedMsg.payload,
+      } : null;
+    } else {
+      msgObj.reply_message = null;
+    }
+
+    // Real-time push to connected frontend clients (non-blocking)
+    pushToAccount(channel.account_id.toString(), {
+      type: "new_message",
+      channel_id: channel._id,
+      contact_id: contact._id,
+      message: msgObj,
+    }).catch(() => {});
 
 
     // 🧠 SESSION
@@ -314,7 +365,7 @@ export const receiveMessage = async (req: Request, res: Response) => {
         session.current_node = nextNodeId;
       }
     }
-    const whatsapp = createWhatsAppClient(channel, contact);
+    const whatsapp = createWhatsAppClient(channel, contact, channel.account_id.toString());
 
     // 🔥 INPUT DETECT (ONE TIME ONLY)
     if (!message) {
@@ -497,7 +548,7 @@ export const handleCallEvent = async (value: any) => {
 
     if (!automation) return true;
 
-    const whatsapp = createWhatsAppClient(channel, contact);
+    const whatsapp = createWhatsAppClient(channel, contact, channel.account_id.toString());
 
     const session = {
       contact_id: contact._id,

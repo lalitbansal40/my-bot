@@ -9,6 +9,7 @@ import axios from "axios";
 import { convertToMp3 } from "../helpers/audioConvertor";
 import { convertToMp4 } from "../helpers/videoConvertor";
 import heicConvert from "heic-convert";
+import { pushToAccount } from "../services/wsHelper";
 /* ================================
    Attach Reply Messages
 ================================ */
@@ -212,7 +213,7 @@ export const sendTextMessage = async (req: Request, res: Response) => {
     }
 
     // 3️⃣ Create WhatsApp Client
-    const whatsapp = createWhatsAppClient(channel, contact);
+    const whatsapp = createWhatsAppClient(channel, contact, channel.account_id.toString());
 
     // 4️⃣ Send Message (this internally saves message)
     await whatsapp.sendText(contact.phone, text);
@@ -225,6 +226,16 @@ export const sendTextMessage = async (req: Request, res: Response) => {
     })
       .sort({ createdAt: -1 })
       .lean();
+
+    // Real-time push to connected frontend clients (non-blocking)
+    if (message) {
+      pushToAccount(channel.account_id.toString(), {
+        type: "new_message",
+        channel_id: channelId,
+        contact_id: contactId,
+        message,
+      }).catch(() => {});
+    }
 
     return res.status(200).json({
       success: true,
@@ -457,6 +468,14 @@ export const sendMediaMessage = async (req: Request, res: Response) => {
         $set: { last_message_at: new Date() },
       },
     );
+
+    // Real-time push to connected frontend clients (non-blocking)
+    pushToAccount(channel.account_id.toString(), {
+      type: "new_messages",
+      channel_id: channelId,
+      contact_id: contactId,
+      messages: results,
+    }).catch(() => {});
 
     return res.json({
       success: true,

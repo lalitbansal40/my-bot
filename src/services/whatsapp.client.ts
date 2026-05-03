@@ -1,6 +1,7 @@
 import axios from "axios";
 import Message from "../models/message.model";
 import Contact from "../models/contact.model";
+import { pushToAccount } from "./wsHelper";
 
 export interface WhatsAppButton {
   id: string;
@@ -125,6 +126,7 @@ export const createWhatsAppClient = (
   contact: {
     _id: any;
   },
+  accountId?: string,
 ): WhatsAppClient => {
   const api = axios.create({
     baseURL: `https://graph.facebook.com/v24.0/${channel.phone_number_id}`,
@@ -159,6 +161,7 @@ export const createWhatsAppClient = (
           type: "text",
         },
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         // 2️⃣ SEND TO WHATSAPP
@@ -231,6 +234,7 @@ export const createWhatsAppClient = (
         payload,
         is_read: true,
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         const components: any[] = [];
@@ -344,6 +348,7 @@ export const createWhatsAppClient = (
         payload,
         is_read: true,
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         const res = await api.post("/messages", {
@@ -422,6 +427,7 @@ export const createWhatsAppClient = (
         payload: { text },
         is_read: true,
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         const res = await api.post("/messages", {
@@ -479,6 +485,7 @@ export const createWhatsAppClient = (
         payload: data,
         is_read: true,
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         // 🔥 TRY REAL MEDIA CAROUSEL FIRST
@@ -629,6 +636,7 @@ export const createWhatsAppClient = (
         payload: { flowId, options },
         is_read: true,
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         const res = await api.post("/messages", {
@@ -715,6 +723,7 @@ export const createWhatsAppClient = (
         payload,
         is_read: true,
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         const res = await api.post("/messages", {
@@ -796,6 +805,7 @@ export const createWhatsAppClient = (
         payload: { bodyText, buttons },
         is_read: true,
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         const safeButtons = buttons.slice(0, 3);
@@ -875,6 +885,7 @@ export const createWhatsAppClient = (
           type: "address_message",
         },
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         // 2️⃣ SEND TO WHATSAPP
@@ -943,6 +954,7 @@ export const createWhatsAppClient = (
         payload: { bodyText, buttonText, url },
         is_read: true,
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         const res = await api.post("/messages", {
@@ -1007,6 +1019,7 @@ export const createWhatsAppClient = (
         payload,
         is_read: true,
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         const res = await api.post("/messages", {
@@ -1057,6 +1070,7 @@ export const createWhatsAppClient = (
         payload,
         is_read: true,
       });
+      if (accountId) pushToAccount(accountId, { type: "new_message", channel_id: channel._id, contact_id: contact._id, message: msg.toObject() }).catch(() => {});
 
       try {
         const res = await api.post("/messages", {

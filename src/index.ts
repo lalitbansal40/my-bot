@@ -106,8 +106,35 @@ const isLambda = Boolean(process.env.LAMBDA_TASK_ROOT);
 if (!isLambda) {
   connectMongo();
   console.log("✅ MongoDB connected (local)");
-  app.listen(5005, () => {
-    console.log("✅ Server running on http://localhost:5005");
+
+  const { WebSocketServer } = require("ws");
+  const { addLocalConnection, removeLocalConnection } = require("./services/localWsStore");
+  const http = require("http");
+
+  const httpServer = http.createServer(app);
+  const wss = new WebSocketServer({ server: httpServer });
+
+  wss.on("connection", (ws: any, req: any) => {
+    const url = new URL(req.url, "http://localhost");
+    const accountId = url.searchParams.get("accountId");
+
+    if (!accountId) {
+      ws.close(1008, "accountId required");
+      return;
+    }
+
+    addLocalConnection(accountId, ws);
+    console.log(`✅ WS connected: accountId=${accountId}`);
+
+    ws.on("close", () => {
+      removeLocalConnection(accountId, ws);
+      console.log(`❌ WS disconnected: accountId=${accountId}`);
+    });
+  });
+
+  httpServer.listen(5005, () => {
+    console.log("✅ HTTP  → http://localhost:5005");
+    console.log("✅ WS    → ws://localhost:5005");
   });
 }
 /* =========================
