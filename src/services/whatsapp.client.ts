@@ -140,6 +140,11 @@ export const createWhatsAppClient = (
     console.error(`❌ ${ctx}`, err?.response?.data || err.message);
   };
 
+  // Push wa_message_id + status back to frontend so ticks can update
+  const notifyUpdate = (msgId: any, update: { wa_message_id?: string; status: string; error?: any }) => {
+    if (accountId) pushToAccount(accountId, { type: "message_update", _id: msgId.toString(), ...update }).catch(() => {});
+  };
+
   return {
     async sendText(to, text) {
       const timestamp = Math.floor(Date.now() / 1000);
@@ -183,6 +188,7 @@ export const createWhatsAppClient = (
             "payload.id": waId,
           },
         );
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
 
         // 4️⃣ UPDATE CONTACT LAST MESSAGE
         await Contact.updateOne(
@@ -204,7 +210,7 @@ export const createWhatsAppClient = (
             ),
           },
         );
-
+        notifyUpdate(msg._id, { status: "FAILED" });
         logError("sendText", e);
       }
     },
@@ -299,6 +305,7 @@ export const createWhatsAppClient = (
             wa_message_id: waId,
           }
         );
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
 
         await Contact.updateOne(
           { _id: contact._id },
@@ -319,7 +326,7 @@ export const createWhatsAppClient = (
             ),
           }
         );
-
+        notifyUpdate(msg._id, { status: "FAILED" });
         logError("sendTemplate", e);
       }
     },
@@ -392,6 +399,7 @@ export const createWhatsAppClient = (
             wa_message_id: waId,
           }
         );
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
 
         await Contact.updateOne(
           { _id: contact._id },
@@ -412,7 +420,7 @@ export const createWhatsAppClient = (
             ),
           }
         );
-
+        notifyUpdate(msg._id, { status: "FAILED" });
         logError("sendList", e);
       }
     },
@@ -451,6 +459,7 @@ export const createWhatsAppClient = (
             wa_message_id: waId,
           },
         );
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
 
         // 3️⃣ UPDATE CONTACT
         await Contact.updateOne(
@@ -472,6 +481,7 @@ export const createWhatsAppClient = (
             ),
           },
         );
+        notifyUpdate(msg._id, { status: "FAILED" });
         logError("requestLocation", e);
       }
     },
@@ -532,6 +542,7 @@ export const createWhatsAppClient = (
             wa_message_id: waId,
           },
         );
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
 
         await Contact.updateOne(
           { _id: contact._id },
@@ -587,6 +598,7 @@ export const createWhatsAppClient = (
               wa_message_id: waId,
             },
           );
+          notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
 
           await Contact.updateOne(
             { _id: contact._id },
@@ -609,7 +621,7 @@ export const createWhatsAppClient = (
               ),
             },
           );
-
+          notifyUpdate(msg._id, { status: "FAILED" });
           logError("sendCarousel fallback", fallbackError);
         }
       }
@@ -688,6 +700,7 @@ export const createWhatsAppClient = (
             wa_message_id: waId,
           },
         );
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
 
         // 3️⃣ UPDATE CONTACT
         await Contact.updateOne(
@@ -709,7 +722,7 @@ export const createWhatsAppClient = (
             ),
           },
         );
-
+        notifyUpdate(msg._id, { status: "FAILED" });
         logError("sendFlow", e);
       }
     },
@@ -766,6 +779,7 @@ export const createWhatsAppClient = (
             wa_message_id: waId,
           },
         );
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
 
         await Contact.updateOne(
           { _id: contact._id },
@@ -786,11 +800,8 @@ export const createWhatsAppClient = (
             ),
           },
         );
-
-        console.error(
-          "❌ sendInteractiveMedia",
-          e?.response?.data || e.message,
-        );
+        notifyUpdate(msg._id, { status: "FAILED" });
+        console.error("❌ sendInteractiveMedia", e?.response?.data || e.message);
       }
     },
 
@@ -840,6 +851,7 @@ export const createWhatsAppClient = (
             wa_message_id: waId,
           },
         );
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
 
         // 3️⃣ UPDATE CONTACT
         await Contact.updateOne(
@@ -861,7 +873,7 @@ export const createWhatsAppClient = (
             ),
           },
         );
-
+        notifyUpdate(msg._id, { status: "FAILED" });
         logError("sendButtons", e);
       }
     },
@@ -918,6 +930,7 @@ export const createWhatsAppClient = (
             "payload.id": waId,
           },
         );
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
 
         // 4️⃣ UPDATE CONTACT
         await Contact.updateOne(
@@ -939,7 +952,7 @@ export const createWhatsAppClient = (
             ),
           },
         );
-
+        notifyUpdate(msg._id, { status: "FAILED" });
         logError("sendAddressMessage", e);
       }
     },
@@ -984,6 +997,7 @@ export const createWhatsAppClient = (
             wa_message_id: waId,
           },
         );
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
 
         await Contact.updateOne(
           { _id: contact._id },
@@ -1004,7 +1018,7 @@ export const createWhatsAppClient = (
             ),
           },
         );
-
+        notifyUpdate(msg._id, { status: "FAILED" });
         logError("sendUrlButton", e);
       }
     },
@@ -1047,6 +1061,7 @@ export const createWhatsAppClient = (
 
         const waId = res.data?.messages?.[0]?.id;
         await Message.updateOne({ _id: msg._id }, { status: "SENT", wa_message_id: waId });
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
         await Contact.updateOne(
           { _id: contact._id },
           { $set: { last_message_id: msg._id, last_message_at: new Date() } },
@@ -1056,6 +1071,7 @@ export const createWhatsAppClient = (
           { _id: msg._id },
           { status: "FAILED", error: JSON.stringify(e?.response?.data || e?.message || "Unknown error") },
         );
+        notifyUpdate(msg._id, { status: "FAILED" });
         logError("sendProductList", e);
       }
     },
@@ -1090,6 +1106,7 @@ export const createWhatsAppClient = (
 
         const waId = res.data?.messages?.[0]?.id;
         await Message.updateOne({ _id: msg._id }, { status: "SENT", wa_message_id: waId });
+        notifyUpdate(msg._id, { wa_message_id: waId, status: "SENT" });
         await Contact.updateOne(
           { _id: contact._id },
           { $set: { last_message_id: msg._id, last_message_at: new Date() } },
@@ -1099,6 +1116,7 @@ export const createWhatsAppClient = (
           { _id: msg._id },
           { status: "FAILED", error: JSON.stringify(e?.response?.data || e?.message || "Unknown error") },
         );
+        notifyUpdate(msg._id, { status: "FAILED" });
         logError("sendSingleProduct", e);
       }
     },

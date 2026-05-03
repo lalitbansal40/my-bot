@@ -8,7 +8,7 @@ import { pushToAccountLocal } from "./localWsStore";
 export const pushToAccount = async (accountId: string, data: any) => {
   try {
     // Local dev: use in-memory WebSocket store
-    if (!process.env.LAMBDA_TASK_ROOT) {
+    if (process.env.IS_LOCAL === "true") {
       console.log(`[WS] pushToAccount LOCAL — accountId: ${accountId}, type: ${data.type}`);
       pushToAccountLocal(accountId, data);
       return;

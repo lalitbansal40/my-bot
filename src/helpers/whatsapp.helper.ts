@@ -89,23 +89,19 @@ export const interpolate = (
 export const sendTypingIndicator = async (
   phoneNumberId: string,
   accessToken: string,
-  messageId: string
+  messageId: string,
+  to: string
 ) => {
-    await axios.post(
-    `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
-    {
-      messaging_product: "whatsapp",
-      status: "read",
-      message_id: messageId,
-      typing_indicator: {
-        type: "text"
-      }
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      }
-    }
-  );
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+  };
+  const endpoint = `https://graph.facebook.com/v24.0/${phoneNumberId}/messages`;
+
+  await axios.post(endpoint, {
+    messaging_product: "whatsapp",
+    status: "read",
+    message_id: messageId,
+    typing_indicator: { type: "text" },
+  }, { headers });
 };

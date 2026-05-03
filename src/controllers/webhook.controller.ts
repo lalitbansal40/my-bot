@@ -11,6 +11,7 @@ import axios from "axios";
 import { getNextNodeId } from "../engine/grapht";
 import { uploadFromUrlToS3 } from "../services/s3v2.service";
 import { pushToAccount } from "../services/wsHelper";
+import { sendTypingIndicator } from "../helpers/whatsapp.helper";
 dotenv.config({ path: path.join(".env") });
 
 /* =====================================================
@@ -200,7 +201,7 @@ export const receiveMessage = async (req: Request, res: Response) => {
         wa_message_id: message.id,
         text: message.text?.body || message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || "",
 
-        payload: message, // 🔥 full raw message
+        payload: message,
 
         status: "PENDING",
       });
@@ -209,98 +210,93 @@ export const receiveMessage = async (req: Request, res: Response) => {
       return res.sendStatus(200);
     }
 
-    // Enrich message for WS push (same format as API response)
-    const msgObj: any = savedMessage.toObject();
-    msgObj.text = msgObj.text ||
-      msgObj.payload?.text?.body ||
-      msgObj.payload?.interactive?.button_reply?.title ||
-      msgObj.payload?.interactive?.list_reply?.title ||
-      "";
+    // ✅ Respond to WhatsApp IMMEDIATELY to prevent retries / duplicate webhooks
+    res.sendStatus(200);
 
-    const contextId = message.context?.id;
-    if (contextId) {
-      const repliedMsg = await Message.findOne({ wa_message_id: contextId, contact_id: contact._id }).lean() as any;
-      msgObj.reply_message = repliedMsg ? {
-        _id: repliedMsg._id,
-        type: repliedMsg.type,
-        text: repliedMsg.text || repliedMsg.payload?.text?.body || repliedMsg.payload?.bodyText || repliedMsg.payload?.caption || repliedMsg.payload?.interactive?.button_reply?.title || repliedMsg.payload?.interactive?.list_reply?.title || "Message",
-        payload: repliedMsg.payload,
-      } : null;
-    } else {
-      msgObj.reply_message = null;
-    }
+    // Everything below runs async — response is already sent
+    try {
+      // Enrich message for WS push
+      const msgObj: any = savedMessage.toObject();
+      msgObj.text = msgObj.text ||
+        msgObj.payload?.text?.body ||
+        msgObj.payload?.interactive?.button_reply?.title ||
+        msgObj.payload?.interactive?.list_reply?.title ||
+        "";
 
-    // Real-time push to connected frontend clients (non-blocking)
-    pushToAccount(channel.account_id.toString(), {
-      type: "new_message",
-      channel_id: channel._id,
-      contact_id: contact._id,
-      message: msgObj,
-    }).catch(() => {});
+      const contextId = message.context?.id;
+      if (contextId) {
+        const repliedMsg = await Message.findOne({ wa_message_id: contextId, contact_id: contact._id }).lean() as any;
+        msgObj.reply_message = repliedMsg ? {
+          _id: repliedMsg._id,
+          type: repliedMsg.type,
+          text: repliedMsg.text || repliedMsg.payload?.text?.body || repliedMsg.payload?.bodyText || repliedMsg.payload?.caption || repliedMsg.payload?.interactive?.button_reply?.title || repliedMsg.payload?.interactive?.list_reply?.title || "Message",
+          payload: repliedMsg.payload,
+        } : null;
+      } else {
+        msgObj.reply_message = null;
+      }
 
+      // Real-time push to frontend
+      pushToAccount(channel.account_id.toString(), {
+        type: "new_message",
+        channel_id: channel._id,
+        contact_id: contact._id,
+        message: msgObj,
+      }).catch(() => {});
 
-    // 🧠 SESSION
-    const session = {
-      contact_id: contact._id,
-      current_node: contact.attributes?.current_node || "start",
-      waiting_for: contact.attributes?.waiting_for || null,
-      data: contact.attributes || {},
-    };
+      // Mark as read + show typing bubble on user's WhatsApp
+      sendTypingIndicator(channel.phone_number_id, channel.access_token, message.id, from).catch(() => {});
 
+      // 🧠 SESSION
+      const session = {
+        contact_id: contact._id,
+        current_node: contact.attributes?.current_node || "start",
+        waiting_for: contact.attributes?.waiting_for || null,
+        data: contact.attributes || {},
+      };
 
-    const userText = message.text?.body?.toLowerCase()?.trim() || "";
+      const userText = message.text?.body?.toLowerCase()?.trim() || "";
 
-    let automation = null;
-    // 🔥 KEYWORD MATCH (OVERRIDE)
-    const keywordAutomation = await Automation.findOne({
-      channel_id: channel._id,
-      trigger: "new_message_received",
-      status: "active",
-      keywords: { $in: [userText] },
-    });
+      let automation = null;
 
+      // 🔥 KEYWORD MATCH (OVERRIDE)
+      const keywordAutomation = await Automation.findOne({
+        channel_id: channel._id,
+        trigger: "new_message_received",
+        status: "active",
+        keywords: { $in: [userText] },
+      });
 
-    if (keywordAutomation) {
-      console.log("🔥 Override → reset flow");
-
-      automation = keywordAutomation;
-
-      session.current_node = "start";
-      session.waiting_for = null;
-      session.data = {};
-
-      await Contact.updateOne(
-        { _id: contact._id },
-        {
-          $set: {
-            attributes: {
-              current_node: "start",
-              waiting_for: null,
-              automation_id: keywordAutomation._id,
+      if (keywordAutomation) {
+        console.log("🔥 Override → reset flow");
+        automation = keywordAutomation;
+        session.current_node = "start";
+        session.waiting_for = null;
+        session.data = {};
+        await Contact.updateOne(
+          { _id: contact._id },
+          {
+            $set: {
+              attributes: {
+                current_node: "start",
+                waiting_for: null,
+                automation_id: keywordAutomation._id,
+              },
             },
-          },
-        }
-      );
-    }
-
-    // 🧠 SESSION CONTINUE
-    if (
-      !automation && // 🔥 IMPORTANT
-      contact.attributes?.current_node &&
-      contact.attributes.current_node !== "start"
-    ) {
-
-      // 🔥 try continue
-      if (contact.attributes?.automation_id) {
-        automation = await Automation.findById(
-          contact.attributes.automation_id
+          }
         );
       }
 
+      // 🧠 SESSION CONTINUE
+      if (
+        !automation &&
+        contact.attributes?.current_node &&
+        contact.attributes.current_node !== "start"
+      ) {
+        if (contact.attributes?.automation_id) {
+          automation = await Automation.findById(contact.attributes.automation_id);
+        }
 
-      if (!automation) {
-
-        // 🔥 STEP 2: EMPTY KEYWORD AUTOMATION
         if (!automation) {
           automation = await Automation.findOne({
             channel_id: channel._id,
@@ -314,7 +310,6 @@ export const receiveMessage = async (req: Request, res: Response) => {
           });
         }
 
-        // 🛟 STEP 3: FALLBACK
         if (!automation) {
           automation = await Automation.findOne({
             channel_id: channel._id,
@@ -325,161 +320,122 @@ export const receiveMessage = async (req: Request, res: Response) => {
         }
       }
 
-    }
+      // ✅ HANDLE ASK_INPUT RESPONSE
+      if (session.waiting_for === "input" && message.text?.body) {
+        console.log("✅ INPUT RECEIVED:", message.text.body);
+        const value = message.text.body;
+        const key = session.data?.save_key;
+        if (key) {
+          await Contact.updateOne(
+            { _id: contact._id },
+            { $set: { [`attributes.${key}`]: value } }
+          );
+          session.data[key] = value;
+        }
+        session.waiting_for = null;
+        const nextNodeId = getNextNodeId(automation?.edges || [], session.current_node);
+        if (nextNodeId) session.current_node = nextNodeId;
+      }
 
-    // ✅ HANDLE ASK_INPUT RESPONSE
-    if (
-      session.waiting_for === "input" &&
-      message.text?.body
-    ) {
-      console.log("✅ INPUT RECEIVED:", message.text.body);
+      const whatsapp = createWhatsAppClient(channel, contact, channel.account_id.toString());
 
-      const value = message.text.body;
-      const key = session.data?.save_key;
+      const inputId =
+        message?.interactive?.button_reply?.id ||
+        message?.interactive?.list_reply?.id;
 
-      if (key) {
-        // ✅ SAVE TO CONTACT
+      if (inputId) {
         await Contact.updateOne(
           { _id: contact._id },
-          {
-            $set: {
-              [`attributes.${key}`]: value,
-            },
-          }
+          { $set: { "attributes.product_id": inputId } }
         );
-
-        // ✅ SAVE TO SESSION
-        session.data[key] = value;
+        session.data.product_id = inputId;
       }
 
-      // 🔥 RESET WAITING
-      session.waiting_for = null;
-
-      // 🔥 MOVE NEXT
-      const nextNodeId = getNextNodeId(
-        automation?.edges || [],
-        session.current_node
-      );
-
-      if (nextNodeId) {
-        session.current_node = nextNodeId;
+      if (session.waiting_for && inputId) {
+        console.log("✅ INPUT RECEIVED → MOVE NEXT:", inputId);
+        session.waiting_for = null;
+        const nextNode = getNextNodeId(automation?.edges || [], session.current_node, inputId);
+        if (nextNode) session.current_node = nextNode;
       }
-    }
-    const whatsapp = createWhatsAppClient(channel, contact, channel.account_id.toString());
 
-    // 🔥 INPUT DETECT (ONE TIME ONLY)
-    if (!message) {
-      return {
-        text: "",
-        inputId: null,
-        type: "call"
-      };
-    }
+      // ✅ RESET FLOW
+      if (contact.attributes?.current_node === "done") {
+        session.current_node = "start";
+        session.waiting_for = null;
+        session.data = {};
+      }
 
-    const inputId =
-      message?.interactive?.button_reply?.id ||
-      message?.interactive?.list_reply?.id;
+      // 🔥 DEFAULT AUTOMATION (ONLY EMPTY KEYWORDS)
+      if (!automation) {
+        console.log("⚡ Default (no keyword)");
+        automation = await Automation.findOne({
+          channel_id: channel._id,
+          trigger: "new_message_received",
+          status: "active",
+          $or: [
+            { keywords: { $exists: false } },
+            { keywords: { $size: 0 } },
+          ],
+        });
+      }
 
-    // ✅ SAVE INPUT
-    if (inputId) {
+      if (!automation) {
+        console.log("❌ No automation found");
+        return;
+      }
+
+      session.data.automation_id = automation._id;
       await Contact.updateOne(
         { _id: contact._id },
-        { $set: { "attributes.product_id": inputId } }
+        { $set: { "attributes.automation_id": automation._id } }
       );
 
-      // 🔥 CRITICAL (missing)
-      session.data.product_id = inputId;
-    }
+      pushToAccount(channel.account_id.toString(), {
+        type: "typing_indicator",
+        contact_id: contact._id,
+        is_typing: true,
+      }).catch(() => {});
 
-    // 🔥 HANDLE INPUT → MOVE NEXT NODE
-    if (session.waiting_for && inputId) {
-      console.log("✅ INPUT RECEIVED → MOVE NEXT:", inputId);
-
-      session.waiting_for = null;
-
-      const nextNode = getNextNodeId(
-        automation?.edges || [],
-        session.current_node,
-        inputId
-      );
-
-      if (nextNode) {
-        session.current_node = nextNode;
+      // 🚀 RUN ENGINE
+      try {
+        await runAutomation({
+          automation,
+          session,
+          message,
+          whatsapp,
+          updateSession: async (updates) => {
+            const freshContact = await Contact.findById(contact._id).lean();
+            const updatedAttributes = {
+              ...freshContact?.attributes,
+              ...(updates.data || {}),
+              current_node:
+                updates.current_node !== undefined
+                  ? updates.current_node
+                  : freshContact?.attributes?.current_node,
+              waiting_for:
+                updates.waiting_for !== undefined
+                  ? updates.waiting_for
+                  : freshContact?.attributes?.waiting_for,
+            };
+            await Contact.updateOne(
+              { _id: contact._id },
+              { $set: { attributes: updatedAttributes } }
+            );
+            session.current_node = updatedAttributes.current_node;
+            session.waiting_for = updatedAttributes.waiting_for;
+            session.data = updatedAttributes;
+          },
+        });
+      } finally {
+        pushToAccount(channel.account_id.toString(), {
+          type: "typing_indicator",
+          contact_id: contact._id,
+          is_typing: false,
+        }).catch(() => {});
       }
+    } catch (asyncError) {
+      console.error("❌ async processing error", asyncError);
     }
-
-    // ✅ RESET FLOW
-    if (contact.attributes?.current_node === "done") {
-      session.current_node = "start";
-      session.waiting_for = null;
-      session.data = {};
-    }
-
-    // 🔥 DEFAULT AUTOMATION (ONLY EMPTY KEYWORDS)
-    if (!automation) {
-      console.log("⚡ Default (no keyword)");
-
-      automation = await Automation.findOne({
-        channel_id: channel._id,
-        trigger: "new_message_received",
-        status: "active",
-        $or: [
-          { keywords: { $exists: false } },
-          { keywords: { $size: 0 } },
-        ],
-      });
-    }
-
-    if (!automation) {
-      console.log("❌ No automation found");
-      return res.sendStatus(200);
-    }
-
-    session.data.automation_id = automation._id;
-    await Contact.updateOne(
-      { _id: contact._id },
-      {
-        $set: {
-          "attributes.automation_id": automation._id,
-        },
-      }
-    );
-    // 🚀 RUN ENGINE
-    await runAutomation({
-      automation,
-      session,
-      message,
-      whatsapp,
-      updateSession: async (updates) => {
-        const freshContact = await Contact.findById(contact._id).lean();
-
-        const updatedAttributes = {
-          ...freshContact?.attributes,
-          ...(updates.data || {}),
-          current_node:
-            updates.current_node !== undefined
-              ? updates.current_node
-              : freshContact?.attributes?.current_node,
-          waiting_for:
-            updates.waiting_for !== undefined
-              ? updates.waiting_for
-              : freshContact?.attributes?.waiting_for,
-        };
-
-        await Contact.updateOne(
-          { _id: contact._id },
-          {
-            $set: { attributes: updatedAttributes },
-          }
-        );
-
-        session.current_node = updatedAttributes.current_node;
-        session.waiting_for = updatedAttributes.waiting_for;
-        session.data = updatedAttributes;
-      },
-    });
-
-    return res.sendStatus(200);
   } catch (error) {
     console.error("❌ receiveMessage error", error);
     return res.sendStatus(200);

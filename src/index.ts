@@ -21,7 +21,7 @@ import catalogRoutes from "./routes/catalog.routes";
 
 import { connectMongo } from "./database/mongodb";
 import cors from "cors";
-if (!process.env.LAMBDA_TASK_ROOT) {
+if (process.env.IS_LOCAL === "true" || !process.env.LAMBDA_TASK_ROOT) {
   dotenv.config();
 }
 
@@ -101,9 +101,9 @@ app.get("/", (_req: Request, res: Response) => {
 /* =========================
 🔹 LOCAL SERVER
 ========================= */
-const isLambda = Boolean(process.env.LAMBDA_TASK_ROOT);
+const isLocal = process.env.IS_LOCAL === "true";
 
-if (!isLambda) {
+if (isLocal) {
   connectMongo();
   console.log("✅ MongoDB connected (local)");
 
