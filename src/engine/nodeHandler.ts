@@ -18,6 +18,8 @@ import axios from "axios";
 import { TemplateModel } from "../models/template.model";
 import { uploadMediaForSending } from "../controllers/template.controller";
 import { Channel } from "../models/channel.model";
+import { getActionHandler } from "../integrations/handlers";
+import { HandlerCtx } from "../integrations/handlers/types";
 const getFreshSession = async (contactId: string) => {
   const freshContact = await Contact.findById(contactId).lean();
 
@@ -1175,6 +1177,95 @@ export const executeNode = async ({
         body: node.body ? interpolate(node.body, context) : undefined,
         footer: node.footer,
       });
+
+      return moveNext();
+    }
+
+    /* =========================
+       🔥 GENERIC INTEGRATION ACTION
+       Reads node.integration_slug + node.action_key + node.config
+       and dispatches to the registered handler.
+    ========================= */
+    case "integration_action": {
+      const slug = node.integration_slug;
+      const actionKey = node.action_key;
+      const cfg = (node.config || {}) as Record<string, any>;
+
+      if (!slug || !actionKey) {
+        console.warn("⚠️ integration_action: missing integration_slug/action_key");
+        return moveNext();
+      }
+
+      const handler = getActionHandler(slug, actionKey);
+      if (!handler) {
+        console.warn(`⚠️ No handler registered for ${slug}.${actionKey}`);
+        return moveNext();
+      }
+
+      // Resolve credentials
+      let credentials = { config: {}, secrets: {} };
+      try {
+        credentials = await getIntegration(automation.account_id.toString(), slug);
+      } catch (err: any) {
+        console.warn(`⚠️ Integration "${slug}" not configured:`, err?.message);
+        // Some integrations (google_sheet) work via env-level service account → continue with empty creds
+      }
+
+      // Build interpolation context
+      const contact = await Contact.findById(session.contact_id).lean();
+      const ictx = {
+        ...session.data,
+        contact,
+        ...(contact?.attributes || {}),
+      };
+      const interp = (tpl: any) => interpolate(tpl, ictx);
+
+      const handlerCtx: HandlerCtx = {
+        accountId: automation.account_id.toString(),
+        channelId: automation.channel_id.toString(),
+        contactId: session.contact_id,
+        contact,
+        session,
+        automation,
+        credentials,
+        interpolate: interp,
+      };
+
+      // Interpolate the user-provided config eagerly for primitive fields.
+      // Handlers re-interpolate any nested templates as needed.
+      const resolvedCfg: Record<string, any> = {};
+      for (const [k, v] of Object.entries(cfg)) {
+        if (typeof v === "string") resolvedCfg[k] = interp(v) || v;
+        else resolvedCfg[k] = v;
+      }
+
+      try {
+        const result = await handler(handlerCtx, resolvedCfg);
+
+        if (!result.ok) {
+          console.error(`❌ ${slug}.${actionKey} failed:`, result.error);
+        }
+
+        // Save handler output to session.data[save_to]
+        const saveTo = cfg.save_to || node.save_to;
+        if (saveTo && result.data) {
+          const newData = {
+            ...session.data,
+            [saveTo]: result.data,
+          };
+          await updateSession({ data: newData });
+
+          // Also persist on contact for downstream automations
+          if (session.contact_id) {
+            await Contact.updateOne(
+              { _id: session.contact_id },
+              { $set: { [`attributes.${saveTo}`]: result.data } }
+            );
+          }
+        }
+      } catch (err: any) {
+        console.error(`❌ Integration action ${slug}.${actionKey} threw:`, err?.message);
+      }
 
       return moveNext();
     }

@@ -158,7 +158,8 @@ export const createAutomation = async (req: AuthRequest, res: Response) => {
       nodes,
       edges,
       keywords = [],
-      trigger, // 🔥 NEW
+      trigger, // 🔥
+      trigger_config, // 🔥 carries slug + trigger_key for integration triggers
     } = req.body;
 
     // =========================
@@ -194,6 +195,7 @@ export const createAutomation = async (req: AuthRequest, res: Response) => {
       "webhook_received",
       "call_completed",
       "call_missed",
+      "integration_trigger",
     ];
 
     if (!trigger || !allowedTriggers.includes(trigger)) {
@@ -201,6 +203,16 @@ export const createAutomation = async (req: AuthRequest, res: Response) => {
         success: false,
         message: "Invalid or missing trigger",
       });
+    }
+
+    // Integration triggers must include slug + trigger_key
+    if (trigger === "integration_trigger") {
+      if (!trigger_config?.slug || !trigger_config?.trigger_key) {
+        return res.status(400).json({
+          success: false,
+          message: "integration_trigger requires trigger_config.slug and trigger_config.trigger_key",
+        });
+      }
     }
 
     // =========================
@@ -246,6 +258,7 @@ export const createAutomation = async (req: AuthRequest, res: Response) => {
       edges: sanitizedEdges,
       keywords,
       trigger, // ✅ FIXED (dynamic)
+      ...(trigger_config && { trigger_config }),
       automation_type: "builder",
       status: "active",
       disable_automation: false,
@@ -276,7 +289,7 @@ export const updateAutomation = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const account_id = req.user?.account_id;
 
-    const { name, nodes, edges, status } = req.body;
+    const { name, nodes, edges, status, trigger_config } = req.body;
 
     const automation = await Automation.findOne({
       _id: id,
@@ -355,6 +368,7 @@ export const updateAutomation = async (req: AuthRequest, res: Response) => {
             nodes: cleanNodes,
             ...(name !== undefined && { name }),
             ...(status !== undefined && { status }),
+            ...(trigger_config !== undefined && { trigger_config }),
             ...(edges && {
               edges: edges.map((e: any) => ({
                 from: e.from,

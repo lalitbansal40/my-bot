@@ -1,21 +1,12 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-export type IntegrationSlug =
-  | "google_sheet"
-  | "razorpay"
-  | "borzo"
-  | "shiprocket";
-
 export interface IntegrationDocument extends Document {
-  account_id: mongoose.Types.ObjectId; // ✅ FIXED
-
-  slug: IntegrationSlug;
+  account_id: mongoose.Types.ObjectId;
+  channel_id: mongoose.Types.ObjectId; // which channel this integration is configured for
+  slug: string;
   is_active: boolean;
-
   config: Record<string, any>;
-
-  secrets: Record<string, any>; // 🔐 NEW
-
+  secrets: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,14 +20,15 @@ const IntegrationSchema = new Schema<IntegrationDocument>(
       index: true,
     },
 
+    channel_id: {
+      type: Schema.Types.ObjectId,
+      ref: "Channel",
+      required: true,
+      index: true,
+    },
+
     slug: {
       type: String,
-      enum: [
-        "google_sheet",
-        "razorpay",
-        "borzo",
-        "shiprocket",
-      ],
       required: true,
       index: true,
     },
@@ -54,17 +46,15 @@ const IntegrationSchema = new Schema<IntegrationDocument>(
     secrets: {
       type: Schema.Types.Mixed,
       default: {},
-      select: false, // 🔐 VERY IMPORTANT
+      select: false,
     },
   },
   { timestamps: true }
 );
 
-/**
- * 🔥 ONE integration per account per service
- */
+// One integration per account per channel per app
 IntegrationSchema.index(
-  { account_id: 1, slug: 1 },
+  { account_id: 1, channel_id: 1, slug: 1 },
   { unique: true }
 );
 

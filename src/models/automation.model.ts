@@ -25,7 +25,8 @@ export type AutomationNodeType =
   | "list"
   | "payment_summary"
   | "product_list"
-  | "single_product";
+  | "single_product"
+  | "integration_action"; // 🔥 generic integration action — slug + action_key + config
 
 /* ---------- NODE ---------- */
 export interface AutomationNode {
@@ -135,9 +136,11 @@ export interface AutomationNode {
   max_distance_km?: number;
 
   /* =========================
-     INTEGRATION (COMMON)
+     INTEGRATION (COMMON / GENERIC)
   ========================= */
   integration_slug?: string; // google_sheet | razorpay | borzo | shiprocket etc.
+  action_key?: string;       // 🔥 NEW — which action of the slug
+  trigger_key?: string;      // for trigger nodes that wrap an integration trigger
 
   /* =========================
      GOOGLE SHEET NODE
@@ -211,9 +214,18 @@ export interface AutomationDocument extends Document {
   | "outgoing_message"
   | "webhook_received"
   | "call_completed"
-  | "call_missed";
+  | "call_missed"
+  | "integration_trigger"; // 🔥 NEW — see trigger_config for slug/key
   status: "active" | "paused";
   disable_automation: boolean;
+
+  /** When trigger === "integration_trigger" this carries the source */
+  trigger_config?: {
+    slug?: string;          // razorpay, borzo, shopify…
+    trigger_key?: string;   // payment_captured, order_delivered…
+    filters?: Record<string, any>;
+    [key: string]: any;
+  };
 
   channel_id: mongoose.Types.ObjectId;
   account_id: mongoose.Types.ObjectId;
@@ -311,6 +323,7 @@ const AutomationNodeSchema = new Schema<any>(
         "ask_input",
         "product_list",
         "single_product",
+        "integration_action", // 🔥 generic
       ],
       required: true,
     },
@@ -402,8 +415,10 @@ const AutomationNodeSchema = new Schema<any>(
     reference_lng: Number,
     max_distance_km: Number,
 
-    /* ===== INTEGRATION ===== */
+    /* ===== INTEGRATION (GENERIC) ===== */
     integration_slug: String,
+    action_key: String,
+    trigger_key: String,
 
     /* ===== GOOGLE SHEET ===== */
     spreadsheet_id: String,
@@ -480,8 +495,14 @@ const AutomationSchema = new Schema<AutomationDocument>(
         "webhook_received",
         "call_completed",
         "call_missed",
+        "integration_trigger", // 🔥
       ],
       required: true,
+    },
+
+    trigger_config: {
+      type: Schema.Types.Mixed,
+      default: undefined,
     },
 
     status: {

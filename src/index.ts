@@ -19,6 +19,7 @@ import metaRoutes from "./routes/meta.route";
 import catalogRoutes from "./routes/catalog.routes";
 
 import { connectMongo } from "./database/mongodb";
+import { seedIntegrationApps } from "./database/seedIntegrationApps";
 import cors from "cors";
 
 dotenv.config();
@@ -61,6 +62,7 @@ app.use(async (req, res, next) => {
       await connectMongo();
       isDbConnected = true;
       console.log("✅ Mongo Connected");
+      seedIntegrationApps();
     }
 
     next();
