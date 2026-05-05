@@ -19,6 +19,7 @@ import automationRoutes from "./routes/automation.route";
 import mediaRoutes from "./routes/media.routes";
 import metaRoutes from "./routes/meta.route";
 import catalogRoutes from "./routes/catalog.routes";
+import walletRoutes from "./routes/wallet.routes";
 
 import { connectMongo } from "./database/mongodb";
 import { seedIntegrationApps } from "./database/seedIntegrationApps";
@@ -100,6 +101,7 @@ app.use("/api/automations", automationRoutes);
 app.use("/api/media", mediaRoutes);
 app.use("/meta", metaRoutes);
 app.use("/api/catalog", catalogRoutes);
+app.use("/api/wallet", walletRoutes);
 
 
 

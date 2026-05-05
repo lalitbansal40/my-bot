@@ -10,6 +10,11 @@ import Message from "../models/message.model";
 import { parseCSV } from "../helpers/csvparser";
 import { AuthRequest } from "../types/auth.types";
 import mongoose from "mongoose";
+import {
+  attachWalletHoldToWaMessage,
+  releaseTemplateHold,
+  reserveTemplateCharge,
+} from "../services/wallet.service";
 // 🔥 Helper: Get Channel
 const getChannel = async (channelId: string) => {
   const channel = await Channel.findById(channelId);
@@ -736,6 +741,15 @@ export const sendTemplate = async (req: Request, res: Response) => {
       },
     });
 
+    await reserveTemplateCharge({
+      accountId: channel.account_id,
+      channelId: channel._id,
+      contactId: contact._id,
+      messageId: messageDoc._id,
+      templateName: template.name,
+      to,
+    });
+
     // ✅ SEND TO META
     const response = await axios.post(
       `https://graph.facebook.com/v19.0/${channel.phone_number_id}/messages`,
@@ -759,6 +773,11 @@ export const sendTemplate = async (req: Request, res: Response) => {
       },
     });
 
+    await attachWalletHoldToWaMessage({
+      messageId: messageDoc._id,
+      waMessageId,
+    });
+
     // 🔥 UPDATE CONTACT
     await Contact.findByIdAndUpdate(contact._id, {
       last_message: renderedText,
@@ -774,6 +793,7 @@ export const sendTemplate = async (req: Request, res: Response) => {
     console.error("SEND TEMPLATE ERROR:", err?.response?.data || err.message);
 
     if (messageDoc?._id) {
+      await releaseTemplateHold(messageDoc._id, "template_send_failed");
       await Message.findByIdAndUpdate(messageDoc._id, {
         status: "FAILED",
         error: err?.response?.data || err.message,
@@ -785,7 +805,11 @@ export const sendTemplate = async (req: Request, res: Response) => {
 
     return res.status(500).json({
       success: false,
-      message: err?.response?.data || err.message,
+      message:
+        err?.message?.includes("Wallet") ||
+        err?.message?.includes("wallet")
+          ? err.message
+          : err?.response?.data || err.message,
     });
   }
 };
@@ -960,17 +984,39 @@ const sendTemplateInternal = async ({
     },
   });
 
-  // 🔥 SEND TO META
-  const response = await axios.post(
-    `https://graph.facebook.com/v19.0/${channel.phone_number_id}/messages`,
-    metaPayload,
-    {
-      headers: {
-        Authorization: `Bearer ${channel.access_token}`,
-        "Content-Type": "application/json",
+  await reserveTemplateCharge({
+    accountId: channel.account_id,
+    channelId: channel._id,
+    contactId: contact._id,
+    messageId: messageDoc._id,
+    templateName: template.name,
+    to,
+  });
+
+  let response: any;
+  try {
+    // 🔥 SEND TO META
+    response = await axios.post(
+      `https://graph.facebook.com/v19.0/${channel.phone_number_id}/messages`,
+      metaPayload,
+      {
+        headers: {
+          Authorization: `Bearer ${channel.access_token}`,
+          "Content-Type": "application/json",
+        },
       },
-    },
-  );
+    );
+  } catch (err: any) {
+    await releaseTemplateHold(messageDoc._id, "template_send_failed");
+    await Message.findByIdAndUpdate(messageDoc._id, {
+      status: "FAILED",
+      error: err?.response?.data || err.message,
+      $set: {
+        "payload.error": err?.response?.data || err.message,
+      },
+    });
+    throw err;
+  }
 
   const waMessageId = response.data.messages?.[0]?.id;
 
@@ -981,6 +1027,11 @@ const sendTemplateInternal = async ({
     $set: {
       "payload.response": response.data,
     },
+  });
+
+  await attachWalletHoldToWaMessage({
+    messageId: messageDoc._id,
+    waMessageId,
   });
 
   return true;

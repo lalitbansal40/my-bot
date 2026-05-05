@@ -12,6 +12,10 @@ import { getNextNodeId } from "../engine/grapht";
 import { uploadFromUrlToS3 } from "../services/s3v2.service";
 import { pushToAccount } from "../services/wsHelper";
 import { sendTypingIndicator } from "../helpers/whatsapp.helper";
+import {
+  captureTemplateHold,
+  releaseTemplateHold,
+} from "../services/wallet.service";
 dotenv.config({ path: path.join(".env") });
 
 /* =====================================================
@@ -116,10 +120,22 @@ export const receiveMessage = async (req: Request, res: Response) => {
       const updatedMsg = await Message.findOneAndUpdate(
         { wa_message_id: statusObj.id },
         updateData,
-        { new: false, lean: true, projection: { channel_id: 1, contact_id: 1 } }
+        { new: false, lean: true, projection: { channel_id: 1, contact_id: 1, type: 1 } }
       ) as any;
 
       if (updatedMsg) {
+        if (updatedMsg.type === "template") {
+          const normalizedStatus = statusObj.status?.toUpperCase();
+          if (normalizedStatus === "DELIVERED" || normalizedStatus === "READ") {
+            await captureTemplateHold(updatedMsg._id);
+          } else if (normalizedStatus === "FAILED") {
+            await releaseTemplateHold(
+              updatedMsg._id,
+              updateData.error?.message || "template_delivery_failed"
+            );
+          }
+        }
+
         const msgChannel = await Channel.findById(updatedMsg.channel_id, "account_id").lean() as any;
         if (msgChannel) {
           pushToAccount(msgChannel.account_id.toString(), {
