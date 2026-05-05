@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -14,11 +15,34 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
+          username: ${{ secrets.EC2_USER || 'ubuntu' }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          command_timeout: 20m
           script: |
-            cd /home/ubuntu/AutoChatix-backend
-            git pull origin main
-            npm install
+            set -euo pipefail
+
+            APP_DIR="${{ secrets.EC2_DEPLOY_PATH || '/home/ubuntu/AutoChatix-backend' }}"
+            APP_NAME="${{ secrets.PM2_APP_NAME || 'autochatix-backend' }}"
+
+            cd "$APP_DIR"
+
+            echo "Deploying latest main..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "Installing production build dependencies..."
+            npm ci
+
+            echo "Building backend..."
             npm run build
-            pm2 restart autochatix-backend
+
+            echo "Restarting PM2..."
+            pm2 startOrReload ecosystem.config.js --update-env
+            pm2 save
+
+            echo "Validating local API..."
+            curl -fsS http://127.0.0.1:5005/health
+            curl -fsS http://127.0.0.1:5005/api/integrations/registry
+
+            echo "Deployment completed for $APP_NAME"
