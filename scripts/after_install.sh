@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/var/www/autochatix-backend"
-SHARED_ENV="/var/www/autochatix-shared/backend.env"
+APP_DIR="/home/ubuntu/AutoChatix-backend"
+SHARED_ENV="/home/ubuntu/autochatix-shared/backend.env"
 
 cd "$APP_DIR"
 

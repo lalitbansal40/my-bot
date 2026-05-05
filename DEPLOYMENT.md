@@ -15,21 +15,21 @@ GitHub/CodeCommit -> CodePipeline -> CodeBuild -> CodeDeploy -> EC2 -> PM2
 
 Install Node.js 20, npm, PM2, and the CodeDeploy agent on the EC2 instance.
 
-Recommended app paths:
+Recommended app paths for your current EC2:
 
-- App directory: `/var/www/autochatix-backend`
-- Shared env file: `/var/www/autochatix-shared/backend.env`
+- App directory: `/home/ubuntu/AutoChatix-backend`
+- Shared env file: `/home/ubuntu/autochatix-shared/backend.env`
 
 Put production env values in:
 
 ```bash
-/var/www/autochatix-shared/backend.env
+/home/ubuntu/autochatix-shared/backend.env
 ```
 
 The deploy script copies this to:
 
 ```bash
-/var/www/autochatix-backend/.env
+/home/ubuntu/AutoChatix-backend/.env
 ```
 
 Your EC2 instance must have an IAM role that allows CodeDeploy access.

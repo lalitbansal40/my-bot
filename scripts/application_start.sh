@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/var/www/autochatix-backend"
+APP_DIR="/home/ubuntu/AutoChatix-backend"
 APP_NAME="autochatix-backend"
 
 cd "$APP_DIR"

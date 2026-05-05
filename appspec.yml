@@ -4,7 +4,7 @@ file_exists_behavior: OVERWRITE
 
 files:
   - source: /
-    destination: /var/www/autochatix-backend
+    destination: /home/ubuntu/AutoChatix-backend
 
 hooks:
   BeforeInstall:

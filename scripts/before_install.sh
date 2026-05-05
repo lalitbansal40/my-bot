@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/var/www/autochatix-backend"
-SHARED_DIR="/var/www/autochatix-shared"
+APP_DIR="/home/ubuntu/AutoChatix-backend"
+SHARED_DIR="/home/ubuntu/autochatix-shared"
 
 mkdir -p "$APP_DIR" "$SHARED_DIR"
 
