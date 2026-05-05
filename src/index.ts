@@ -1,6 +1,8 @@
 import express, { Request, Response } from "express";
 import dotenv from "dotenv";
 import http from "http";
+import fs from "fs";
+import path from "path";
 import { WebSocketServer } from "ws";
 import { addLocalConnection, removeLocalConnection } from "./services/localWsStore";
 
@@ -25,6 +27,16 @@ import cors from "cors";
 dotenv.config();
 
 const app = express();
+
+const getDeployInfo = () => {
+  try {
+    const deployInfoPath = path.join(process.cwd(), "deploy-info.json");
+    if (!fs.existsSync(deployInfoPath)) return {};
+    return JSON.parse(fs.readFileSync(deployInfoPath, "utf8"));
+  } catch {
+    return {};
+  }
+};
 
 /* =========================
 🔥 CORS FIX (STRONG)
@@ -96,6 +108,19 @@ app.use("/api/catalog", catalogRoutes);
 ========================= */
 app.get("/", (_req: Request, res: Response) => {
   res.send("AutoChatix API running 🚀");
+});
+
+app.get("/health", (_req: Request, res: Response) => {
+  res.json({
+    ok: true,
+    service: "autochatix-backend",
+    uptime: process.uptime(),
+    deploy: {
+      version: process.env.DEPLOY_VERSION || null,
+      time: process.env.DEPLOY_TIME || null,
+      ...getDeployInfo(),
+    },
+  });
 });
 
 /* =========================
