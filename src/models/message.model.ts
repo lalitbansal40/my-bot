@@ -147,7 +147,7 @@ const MessageSchema = new Schema<MessageDocument>(
       index: true,
     },
 
-    wa_message_id: { type: String, index: true },
+    wa_message_id: { type: String },
 
     text: { type: String },
 

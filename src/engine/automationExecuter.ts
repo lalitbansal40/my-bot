@@ -25,6 +25,11 @@ export interface IncomingMessage {
     body: string;
   };
 
+  button?: {
+    payload?: string;
+    text?: string;
+  };
+
   from: string;
   interactive?: {
     type?: "button_reply" | "list_reply" | "nfm_reply";
@@ -93,70 +98,129 @@ export const runAutomation = async ({
   }
 
   /* ===============================
-     1️⃣ BUTTON HANDLING
+     1️⃣ BUTTON / LIST / CAROUSEL HANDLING
   =============================== */
+  const isInteractiveReply =
+    !!normalizedMessage.interactive?.button_reply ||
+    !!normalizedMessage.interactive?.list_reply;
+
+  // 🔥 CRITICAL: a button/list reply ALWAYS belongs to the previous interactive
+  // node — never let it fall through to the "start" branch (which would
+  // re-trigger the carousel). We accept it whenever waiting_for is set to
+  // any of the interactive states, OR when the contact is parked on an
+  // interactive-type node (carousel / auto_reply with buttons / list).
+  const interactiveStates = ["button", "list", "carousel"];
+  const currentNodeObj = automation.nodes.find(
+    (n) => n.id === session.current_node,
+  );
+  const isOnInteractiveNode =
+    currentNodeObj?.type === "carousel" ||
+    currentNodeObj?.type === "list" ||
+    (currentNodeObj?.type === "auto_reply" &&
+      Array.isArray((currentNodeObj as any).buttons) &&
+      (currentNodeObj as any).buttons.length > 0);
+
   if (
-    session.waiting_for === "button" &&
-    normalizedMessage.interactive?.button_reply
+    isInteractiveReply &&
+    (interactiveStates.includes(session.waiting_for) || isOnInteractiveNode)
   ) {
-    const buttonId = (
-      normalizedMessage.interactive?.button_reply.id ||
-      normalizedMessage.interactive?.button_reply.title ||
+    const rawButtonId = (
+      normalizedMessage.interactive?.button_reply?.id ||
+      normalizedMessage.interactive?.list_reply?.id ||
+      ""
+    ).trim();
+    const rawTitle = (
+      normalizedMessage.interactive?.button_reply?.title ||
+      normalizedMessage.interactive?.list_reply?.title ||
       ""
     ).trim();
 
-    console.log("🔥 BUTTON:", buttonId);
+    // Map carousel synthetic IDs (cr_<card>_<button>) back to the real
+    // button.id stored on the node — this is what edge.condition matches.
+    const mappedId =
+      session.data?.carousel_button_id_map?.[rawButtonId] || rawButtonId;
 
+    console.log("🔥 BUTTON click", {
+      rawButtonId,
+      mappedId,
+      title: rawTitle,
+      currentNode: session.current_node,
+      waiting_for: session.waiting_for,
+    });
+
+    // 1️⃣ Try edge match by mapped id (primary path)
     let nextNodeId = getNextNodeByCondition(
       automation.edges,
       session.current_node,
-      buttonId as string,
+      mappedId,
     );
 
-    // 🔥 GENERIC FALLBACK FIX
-    if (!nextNodeId) {
-      // 👇 DO NOT MOVE FORWARD
-      const currentNode = automation.nodes.find(
-        (n) => n.id === session.current_node,
+    // 2️⃣ Fallback: edge match by raw id (in case map was missing)
+    if (!nextNodeId && rawButtonId && rawButtonId !== mappedId) {
+      nextNodeId = getNextNodeByCondition(
+        automation.edges,
+        session.current_node,
+        rawButtonId,
       );
+    }
 
-      if (currentNode) {
-        // 🔁 resend same node (retry UX)
-        return executeNode({
-          node: currentNode,
-          automation,
-          session,
-          message: normalizedMessage,
-          whatsapp,
-          updateSession,
-        });
+    // 3️⃣ Fallback: edge match by button title
+    if (!nextNodeId && rawTitle) {
+      nextNodeId = getNextNodeByCondition(
+        automation.edges,
+        session.current_node,
+        rawTitle,
+      );
+    }
+
+    // 4️⃣ Fallback: read button.nextNode directly from node definition
+    //    (covers the case where the user picked "Next Node" in the editor
+    //    instead of dragging an edge handle).
+    if (!nextNodeId && currentNodeObj) {
+      const collectButtons: any[] = [];
+      if (Array.isArray((currentNodeObj as any).buttons))
+        collectButtons.push(...(currentNodeObj as any).buttons);
+      if (Array.isArray((currentNodeObj as any).cards)) {
+        for (const card of (currentNodeObj as any).cards) {
+          if (Array.isArray(card.buttons)) collectButtons.push(...card.buttons);
+        }
       }
+      if (Array.isArray((currentNodeObj as any).sections)) {
+        for (const sec of (currentNodeObj as any).sections) {
+          if (Array.isArray(sec.rows)) collectButtons.push(...sec.rows);
+        }
+      }
+      const matched = collectButtons.find(
+        (b: any) =>
+          (b?.id && (b.id === mappedId || b.id === rawButtonId)) ||
+          (b?.title && rawTitle && b.title === rawTitle),
+      );
+      if (matched?.nextNode) nextNodeId = matched.nextNode;
+    }
 
+    if (!nextNodeId) {
+      console.warn("⚠️ No matching edge/button for reply:", {
+        mappedId,
+        rawButtonId,
+        rawTitle,
+        currentNode: session.current_node,
+        edges: automation.edges?.filter(
+          (e: any) => e.from === session.current_node,
+        ),
+      });
+      // 🔥 IMPORTANT: do NOT fall through. If we re-enter, the "start"
+      // branch below will re-fire the carousel. Bail silently instead.
       return;
     }
 
-    // ❌ STILL NOTHING → STAY ON SAME NODE
-    if (!nextNodeId) {
-      const currentNode = automation.nodes.find(
-        (n) => n.id === session.current_node,
-      );
-
-      if (currentNode) {
-        return executeNode({
-          node: currentNode,
-          automation,
-          session,
-          message: normalizedMessage,
-          whatsapp,
-          updateSession,
-        });
-      }
-
-      return;
-    }
     await updateSession({
       current_node: nextNodeId,
       waiting_for: null,
+      data: {
+        ...session.data,
+        last_button_id: mappedId,
+        last_button_title: rawTitle,
+      },
     });
 
     const nextNode = automation.nodes.find((n) => n.id === nextNodeId);
@@ -172,6 +236,23 @@ export const runAutomation = async ({
       whatsapp,
       updateSession,
     });
+  }
+
+  // 🔥 SAFETY NET: if we received an interactive reply but the contact's
+  // session is in an unexpected state (e.g. stale current_node, lost
+  // waiting_for after a crash) — DO NOT re-trigger the flow from start.
+  // Just acknowledge and stop, otherwise the carousel sends itself again
+  // every time the user taps a card button.
+  if (isInteractiveReply) {
+    console.warn(
+      "⚠️ Interactive reply received but session not on an interactive node — ignoring to avoid re-trigger",
+      {
+        currentNode: session.current_node,
+        waiting_for: session.waiting_for,
+        currentNodeType: currentNodeObj?.type,
+      },
+    );
+    return;
   }
 
   /* ===============================

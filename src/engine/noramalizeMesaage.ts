@@ -21,6 +21,19 @@ export const normalizeMessage = (
       type: "button_reply",
       button_reply: message.interactive.button_reply,
     };
+  } else if (message.button?.payload || message.button?.text) {
+    interactive = {
+      type: "button_reply",
+      button_reply: {
+        id: message.button.payload || message.button.text || "",
+        title: message.button.text,
+      },
+    };
+  } else if (message.interactive?.list_reply) {
+    interactive = {
+      type: "list_reply",
+      list_reply: message.interactive.list_reply,
+    };
   } else if (message.interactive?.nfm_reply) {
     interactive = {
       type: "nfm_reply",
@@ -43,4 +56,3 @@ export const normalizeMessage = (
     interactive,
   };
 };
-

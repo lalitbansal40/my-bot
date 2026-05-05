@@ -82,6 +82,7 @@ export interface WhatsAppClient {
         title: string;
         description?: string;
         image?: string;
+        buttons?: { id: string; title: string; type?: string; url?: string }[];
       }[];
     },
   ): Promise<void>;
@@ -512,31 +513,51 @@ export const createWhatsAppClient = (
           to,
           type: "interactive",
           interactive: {
-            type: "media_carousel",
+            type: "carousel",
             body: {
               text: data.body,
             },
             action: {
-              cards: data.items.map((item) => ({
-                header: {
-                  type: "image",
-                  image: {
-                    link: item.image || "https://via.placeholder.com/300",
-                  },
-                },
-                body: {
-                  text: item.title,
-                },
-                buttons: [
-                  {
-                    type: "reply",
-                    reply: {
-                      id: item.id,
-                      title: (item.title || "Select").substring(0, 20),
+              cards: data.items.map((item, cardIndex) => {
+                const buttons =
+                  item.buttons && item.buttons.length > 0
+                    ? item.buttons
+                    : [{ id: item.id, title: item.title || "Select" }];
+                const primaryButton = buttons[0];
+                const isUrlButton =
+                  primaryButton?.type === "url" && Boolean(primaryButton.url);
+
+                return {
+                  card_index: cardIndex,
+                  type: isUrlButton ? "cta_url" : "button",
+                  header: {
+                    type: "image",
+                    image: {
+                      link: item.image || "https://via.placeholder.com/300",
                     },
                   },
-                ],
-              })),
+                  body: {
+                    text: item.title,
+                  },
+                  action: isUrlButton
+                    ? {
+                      name: "cta_url",
+                      parameters: {
+                        display_text: (primaryButton.title || "Open").substring(0, 20),
+                        url: primaryButton.url,
+                      },
+                    }
+                    : {
+                      buttons: buttons.slice(0, 2).map((button) => ({
+                        type: "quick_reply",
+                        quick_reply: {
+                          id: String(button.id).substring(0, 20),
+                          title: (button.title || "Select").substring(0, 20),
+                        },
+                      })),
+                    },
+                };
+              }),
             },
           },
         });
@@ -562,7 +583,10 @@ export const createWhatsAppClient = (
           },
         );
       } catch (e: any) {
-        console.warn("⚠️ Media carousel failed, fallback to list");
+        console.warn(
+          "⚠️ Media carousel failed, fallback to list",
+          JSON.stringify(e?.response?.data || e?.message || e),
+        );
 
         try {
           // 🔁 FALLBACK TO LIST (OLD LOGIC)

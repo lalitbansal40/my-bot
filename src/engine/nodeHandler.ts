@@ -656,36 +656,77 @@ export const executeNode = async ({
     case "carousel": {
       console.log("Executing carousel node:", node.id);
 
+      // 🔥 RE-ENTRY GUARD: if user just sent a button/list reply that we
+      // somehow couldn't match to an outgoing edge, do NOT re-send the
+      // carousel — that creates the "click → carousel reappears" loop.
+      // The button branch in automationExecuter already handles reply-to-
+      // edge matching; reaching here with an interactive reply means
+      // matching failed and we should stop, not spam the user.
+      if (
+        message?.interactive?.button_reply ||
+        message?.interactive?.list_reply
+      ) {
+        console.warn(
+          "⚠️ Carousel node reached with interactive reply — skipping re-send",
+          { nodeId: node.id, waiting_for: session.waiting_for },
+        );
+        return;
+      }
+
       if (session.waiting_for === "carousel") return;
 
-      console.log("👉 node.items:", node.items);
-      console.log("👉 typeof node.items:", typeof node.items);
+      const savedItems = JSON.parse(JSON.stringify(node?.items ?? []));
+      const savedCards = JSON.parse(JSON.stringify(node?.cards ?? []));
 
-      // 🔥 FINAL FIX (MONGOOSE SAFE)
-      const items = JSON.parse(JSON.stringify(node?.items ?? []));
-      console.log("CHECK:", Array.isArray(node.items), node.items?.length);
+      const carouselButtonIdMap: Record<string, string> = {};
 
-      console.log("🔥 FINAL ITEMS:", items);
-      console.log("🔥 LENGTH:", items.length);
+      const items =
+        savedItems.length > 0
+          ? savedItems
+          : savedCards.map((card: any, cardIndex: number) => {
+              const buttons = Array.isArray(card.buttons) ? card.buttons : [];
+              const firstButton = buttons[0];
+
+              return {
+                id: `cr_${cardIndex}_0`,
+                title: card.body || firstButton?.title || "Select",
+                description: firstButton?.title,
+                image: card.media?.url,
+                buttons: buttons
+                  .filter((button: any) => button?.id && button?.title)
+                  .map((button: any, buttonIndex: number) => {
+                    const replyId = `cr_${cardIndex}_${buttonIndex}`;
+                    carouselButtonIdMap[replyId] = button.id;
+
+                    return {
+                      id: replyId,
+                      title: button.title,
+                      type: button.type,
+                      url: button.url,
+                    };
+                  }),
+              };
+            });
 
       if (!items || items.length === 0) {
-        console.warn("❌ Carousel has no items AFTER FIX");
+        console.warn("❌ Carousel has no cards/items");
         return;
       }
 
       await whatsapp.sendCarousel(from, {
         header: node.header || undefined,
-        body: node.body || "Please choose",
+        body: node.body || node.message || "Choose an option",
         items,
       });
 
       await updateSession({
         current_node: node.id,
-        waiting_for: "carousel",
+        waiting_for: "button",
         data: {
           ...session.data,
           carousel_items: items,
           carousel_node: node.id,
+          carousel_button_id_map: carouselButtonIdMap,
         },
       });
 

@@ -53,6 +53,7 @@ export interface AutomationNode {
       title: string;
       type: string;
       nextNode?: string;
+      url?: string;
     }[];
   }[];
 
@@ -244,6 +245,37 @@ export interface AutomationDocument extends Document {
    SCHEMAS
 ========================= */
 
+const CarouselButtonSchema = new Schema<any>(
+  {
+    id: String,
+    title: String,
+    type: String,
+    nextNode: String,
+    url: String,
+  },
+  { _id: false },
+);
+
+const CarouselCardSchema = new Schema<any>(
+  {
+    id: String,
+    body: String,
+    media: {
+      type: {
+        type: String,
+        enum: ["image", "video"],
+      },
+      url: String,
+      name: String,
+    },
+    buttons: {
+      type: [CarouselButtonSchema],
+      default: undefined,
+    },
+  },
+  { _id: false },
+);
+
 /* ---------- NODE SCHEMA ---------- */
 const AutomationNodeSchema = new Schema<any>(
   {
@@ -255,31 +287,7 @@ const AutomationNodeSchema = new Schema<any>(
 
     /* ===== CAROUSEL ===== */
     cards: {
-      type: [
-        {
-          id: String,
-          body: String,
-          media: {
-            type: {
-              type: String,
-              enum: ["image", "video"],
-            },
-            url: String,
-            name: String,
-          },
-          buttons: {
-            type: [
-              {
-                id: String,
-                title: String,
-                type: String,
-                nextNode: String,
-              },
-            ],
-            default: undefined,
-          },
-        },
-      ],
+      type: [CarouselCardSchema],
       default: undefined,
     },
 

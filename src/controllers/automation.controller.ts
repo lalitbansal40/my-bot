@@ -340,13 +340,23 @@ export const updateAutomation = async (req: AuthRequest, res: Response) => {
               let buttons = card.buttons;
 
               if (typeof buttons === "string") {
-                console.log("❌ FIXING STRING BUTTONS (CARD)");
                 buttons = [];
               }
 
               if (!Array.isArray(buttons)) {
                 buttons = [];
               }
+
+              buttons = buttons
+                .filter((button: any) => button && typeof button === "object")
+                .map((button: any) => ({
+                  id: String(button.id || ""),
+                  title: String(button.title || ""),
+                  type: String(button.type || "quick_reply"),
+                  nextNode: String(button.nextNode || ""),
+                  ...(button.url && { url: String(button.url) }),
+                }))
+                .filter((button: any) => button.id && button.title);
 
               return {
                 ...card,

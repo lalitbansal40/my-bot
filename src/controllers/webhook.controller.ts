@@ -189,6 +189,28 @@ export const receiveMessage = async (req: Request, res: Response) => {
         waiting_for: null,
       };
     }
+
+    const incomingMessageType =
+      message.type === "interactive" ||
+      message.type === "button" ||
+      message.type === "image" ||
+      message.type === "document" ||
+      message.type === "video" ||
+      message.type === "audio" ||
+      message.type === "location" ||
+      message.type === "sticker" ||
+      message.type === "contact"
+        ? message.type
+        : "text";
+
+    const incomingText =
+      message.text?.body ||
+      message.button?.text ||
+      message.button?.payload ||
+      message.interactive?.button_reply?.title ||
+      message.interactive?.list_reply?.title ||
+      "";
+
     let savedMessage: any;
     try {
       savedMessage = await Message.create({
@@ -196,10 +218,10 @@ export const receiveMessage = async (req: Request, res: Response) => {
         contact_id: contact._id,
 
         direction: "IN",
-        type: message.type === "interactive" ? "interactive" : "text",
+        type: incomingMessageType,
 
         wa_message_id: message.id,
-        text: message.text?.body || message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || "",
+        text: incomingText,
 
         payload: message,
 
@@ -214,6 +236,8 @@ export const receiveMessage = async (req: Request, res: Response) => {
     const msgObj: any = savedMessage.toObject();
     msgObj.text = msgObj.text ||
       msgObj.payload?.text?.body ||
+      msgObj.payload?.button?.text ||
+      msgObj.payload?.button?.payload ||
       msgObj.payload?.interactive?.button_reply?.title ||
       msgObj.payload?.interactive?.list_reply?.title ||
       "";
@@ -224,7 +248,7 @@ export const receiveMessage = async (req: Request, res: Response) => {
       msgObj.reply_message = repliedMsg ? {
         _id: repliedMsg._id,
         type: repliedMsg.type,
-        text: repliedMsg.text || repliedMsg.payload?.text?.body || repliedMsg.payload?.bodyText || repliedMsg.payload?.caption || repliedMsg.payload?.interactive?.button_reply?.title || repliedMsg.payload?.interactive?.list_reply?.title || "Message",
+        text: repliedMsg.text || repliedMsg.payload?.body || repliedMsg.payload?.text?.body || repliedMsg.payload?.button?.text || repliedMsg.payload?.button?.payload || repliedMsg.payload?.bodyText || repliedMsg.payload?.caption || repliedMsg.payload?.interactive?.button_reply?.title || repliedMsg.payload?.interactive?.list_reply?.title || "Message",
         payload: repliedMsg.payload,
       } : null;
     } else {
@@ -251,16 +275,36 @@ export const receiveMessage = async (req: Request, res: Response) => {
     };
 
     const userText = message.text?.body?.toLowerCase()?.trim() || "";
+    const isInteractiveReply = !!(
+      message?.interactive?.button_reply?.id ||
+      message?.interactive?.list_reply?.id ||
+      message?.interactive?.nfm_reply ||
+      message?.button?.payload ||
+      message?.button?.text
+    );
 
     let automation = null;
 
     // 🔥 KEYWORD MATCH (OVERRIDE)
-    const keywordAutomation = await Automation.findOne({
-      channel_id: channel._id,
-      trigger: "new_message_received",
-      status: "active",
-      keywords: { $in: [userText] },
-    });
+    // Only run keyword override when we have actual text AND we're NOT
+    // mid-flow waiting for a structured reply. Without this guard, an empty
+    // userText (button/list/flow reply) could match an automation whose
+    // keywords array contains "" and reset the carousel flow on every tap.
+    const inActiveFlow =
+      session.waiting_for &&
+      ["button", "list", "carousel", "flow", "address_message", "location"].includes(
+        session.waiting_for,
+      );
+
+    const keywordAutomation =
+      userText && !isInteractiveReply && !inActiveFlow
+        ? await Automation.findOne({
+            channel_id: channel._id,
+            trigger: "new_message_received",
+            status: "active",
+            keywords: { $in: [userText] },
+          })
+        : null;
 
     if (keywordAutomation) {
       console.log("🔥 Override → reset flow");
@@ -336,7 +380,8 @@ export const receiveMessage = async (req: Request, res: Response) => {
 
     const inputId =
       message?.interactive?.button_reply?.id ||
-      message?.interactive?.list_reply?.id;
+      message?.interactive?.list_reply?.id ||
+      message?.button?.payload;
 
     if (inputId) {
       await Contact.updateOne(
@@ -346,7 +391,11 @@ export const receiveMessage = async (req: Request, res: Response) => {
       session.data.product_id = inputId;
     }
 
-    if (session.waiting_for && inputId) {
+    if (
+      session.waiting_for &&
+      session.waiting_for !== "button" &&
+      inputId
+    ) {
       console.log("✅ INPUT RECEIVED → MOVE NEXT:", inputId);
       session.waiting_for = null;
       const nextNode = getNextNodeId(automation?.edges || [], session.current_node, inputId);
