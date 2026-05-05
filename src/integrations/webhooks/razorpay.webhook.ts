@@ -10,14 +10,26 @@ const EVENT_MAP: Record<string, string> = {
 };
 
 const parser: WebhookParser = {
-  verify: async (req, _) => {
+  /**
+   * Per-account HMAC verification.
+   * Priority:
+   *  1. `secret` resolved from the Integration record (preferred)
+   *  2. process.env.RAZORPAY_WEBHOOK_SECRET (fallback)
+   *  3. If neither set → skip (dev mode)
+   */
+  verify: async (req, secret) => {
+    const resolvedSecret = secret || process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!resolvedSecret) return; // dev mode: skip verification
+
     const signature = req.headers["x-razorpay-signature"] as string | undefined;
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    if (!secret) return; // dev mode: skip verification
     if (!signature) throw new Error("Missing x-razorpay-signature header");
 
     const raw = (req as any).rawBody || JSON.stringify(req.body);
-    const expected = crypto.createHmac("sha256", secret).update(raw).digest("hex");
+    const expected = crypto
+      .createHmac("sha256", resolvedSecret)
+      .update(raw)
+      .digest("hex");
+
     if (expected !== signature) {
       throw new Error("Razorpay signature mismatch");
     }

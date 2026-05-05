@@ -3,6 +3,18 @@ type RowData = Record<string, any>;
 import dotenv from "dotenv";
 import path from "path";
 dotenv.config({ path: path.join(".env") });
+/**
+ * Accept either a raw spreadsheet ID or a full URL like:
+ *   https://docs.google.com/spreadsheets/d/<ID>/edit?gid=0
+ * and return just the ID. Used so the user can paste the URL.
+ */
+export const extractSpreadsheetId = (input?: string): string => {
+  if (!input) return "";
+  const trimmed = input.trim();
+  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : trimmed;
+};
+
 export class GoogleSheetService {
   private sheets: sheets_v4.Sheets;
   private spreadsheetId: string;
@@ -12,7 +24,7 @@ export class GoogleSheetService {
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
       throw new Error("Google service account not configured");
     }
-    
+
     const auth = new google.auth.JWT({
       email: process.env.GOOGLE_CLIENT_EMAIL,
       key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
@@ -20,7 +32,11 @@ export class GoogleSheetService {
     });
 
     this.sheets = google.sheets({ version: "v4", auth });
-    this.spreadsheetId = spreadsheetId;
+    // 🔒 Always normalize — accepts URL or raw ID.
+    this.spreadsheetId = extractSpreadsheetId(spreadsheetId);
+    if (!this.spreadsheetId) {
+      throw new Error("GoogleSheetService: spreadsheet ID/URL is empty");
+    }
   }
 
 

@@ -2,6 +2,7 @@ import { Request } from "express";
 import mongoose from "mongoose";
 import Automation from "../../models/automation.model";
 import Contact from "../../models/contact.model";
+import Integration from "../../models/integration.model";
 import { Channel } from "../../models/channel.model";
 import { createWhatsAppClient } from "../../services/whatsapp.client";
 import { runAutomation } from "../../engine/automationExecuter";
@@ -23,7 +24,7 @@ export interface WebhookEvent {
 }
 
 export interface WebhookParser {
-  /** Verify signature; throw if invalid. */
+  /** Verify signature; throw if invalid. `secret` is per-account. */
   verify?: (req: Request, secret: string | undefined) => Promise<void> | void;
   parse: (req: Request) => Promise<WebhookEvent[]> | WebhookEvent[];
 }
@@ -31,6 +32,29 @@ export interface WebhookParser {
 const PARSERS: Record<string, WebhookParser> = {
   razorpay: razorpayParser,
   borzo: borzoParser,
+};
+
+/* =============================================================
+   Resolve the per-account webhook secret for an integration.
+============================================================= */
+const getWebhookSecret = async (
+  slug: string,
+  accountId?: string,
+  channelId?: string
+): Promise<string | undefined> => {
+  if (!accountId) return undefined;
+  try {
+    const filter: any = {
+      account_id: new mongoose.Types.ObjectId(accountId),
+      slug,
+    };
+    if (channelId) filter.channel_id = new mongoose.Types.ObjectId(channelId);
+
+    const integration = await Integration.findOne(filter).select("+secrets");
+    return integration?.secrets?.webhook_secret;
+  } catch {
+    return undefined;
+  }
 };
 
 /* =============================================================
@@ -45,15 +69,16 @@ export const dispatchIntegrationWebhook = async (
     return { ok: false, status: 404, error: `No webhook parser for "${slug}"` };
   }
 
-  // Account/channel can be hinted via querystring (recommended)
+  // Account/channel hinted via querystring (recommended)
   const queryAccountId = req.query.account_id as string | undefined;
   const queryChannelId = req.query.channel_id as string | undefined;
 
-  // Verify signature (each parser decides how)
-  // (We resolve secret lazily per event below — here just an early hook)
+  // Resolve per-account secret BEFORE verification
+  const secret = await getWebhookSecret(slug, queryAccountId, queryChannelId);
+
   if (parser.verify) {
     try {
-      await parser.verify(req, undefined);
+      await parser.verify(req, secret);
     } catch (e: any) {
       return { ok: false, status: 401, error: e?.message || "Signature verification failed" };
     }

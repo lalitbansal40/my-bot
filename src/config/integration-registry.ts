@@ -143,6 +143,7 @@ export const INTEGRATION_REGISTRY: IntegrationDefinition[] = [
     fields: [
       f.text("key_id", "API Key ID", { required: true, placeholder: "rzp_test_...", supportsInterpolation: false }),
       f.password("key_secret", "API Key Secret", { required: true, placeholder: "Razorpay key secret" }),
+      f.password("webhook_secret", "Webhook Secret", { required: false, placeholder: "Optional — set in Razorpay dashboard for HMAC verification" }),
       f.select("environment", "Environment", ["test", "live"], { required: true, defaultValue: "test" }),
     ],
     actions: [
@@ -313,9 +314,16 @@ export const INTEGRATION_REGISTRY: IntegrationDefinition[] = [
         label: "Append Row",
         description: "Add a new row of data to the spreadsheet.",
         configSchema: [
-          f.text("spreadsheet_id", "Spreadsheet ID", { required: true, placeholder: "1AbCdef...", supportsInterpolation: false }),
+          f.text("spreadsheet_id", "Spreadsheet URL or ID", {
+            required: true,
+            placeholder: "Paste full Google Sheet URL or just the ID",
+            helperText: "Paste the full URL (e.g. https://docs.google.com/spreadsheets/d/…/edit) or only the ID — both work.",
+            supportsInterpolation: false,
+          }),
           f.text("sheet_name", "Sheet Tab Name", { required: true, defaultValue: "Sheet1", supportsInterpolation: false }),
-          f.kv("map", "Column Mapping", { helperText: "Map sheet columns to values. RHS supports {{variables}}." }),
+          f.kv("map", "Column Mapping", {
+            helperText: "Left = exact column name in your sheet (e.g. Phone, Name). Right = literal value or {{variable}} (e.g. Lalit Bansal, {{contact.name}}, {{contact.phone}}).",
+          }),
           f.text("save_to", "Save Response As", { defaultValue: "sheet_row", supportsInterpolation: false }),
         ],
       },
