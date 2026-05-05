@@ -74,7 +74,7 @@ app.use(async (req, res, next) => {
       await connectMongo();
       isDbConnected = true;
       console.log("✅ Mongo Connected");
-      seedIntegrationApps();
+      await seedIntegrationApps();
     }
 
     next();

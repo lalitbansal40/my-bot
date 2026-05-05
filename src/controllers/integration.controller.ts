@@ -41,6 +41,11 @@ const getAllConfigKeys = (slug: string) => {
   };
 };
 
+const getIntegrationApps = async () => {
+  const apps = await IntegrationApp.find().sort({ order: 1, name: 1 }).lean();
+  return apps.length > 0 ? apps : INTEGRATION_REGISTRY;
+};
+
 /* =====================================================
    GUARD HELPERS
 ===================================================== */
@@ -85,7 +90,7 @@ const validateFields = (slug: string, body: Record<string, any>, res: Response):
 ===================================================== */
 export const getRegistry = async (_req: AuthRequest, res: Response) => {
   try {
-    const apps = await IntegrationApp.find().sort({ order: 1, name: 1 }).lean();
+    const apps = await getIntegrationApps();
     const enriched = apps.map((app) => {
       if (app.slug === 'google_sheet' && process.env.GOOGLE_CLIENT_EMAIL) {
         return { ...app, connectInfo: process.env.GOOGLE_CLIENT_EMAIL };
@@ -111,7 +116,7 @@ export const getCatalog = async (req: AuthRequest, res: Response) => {
 
     const channelId = (req.query.channel_id as string) || undefined;
 
-    const apps = await IntegrationApp.find().sort({ order: 1, name: 1 }).lean();
+    const apps = await getIntegrationApps();
 
     const filter: Record<string, any> = { account_id: accountId, is_active: true };
     if (channelId) filter.channel_id = channelId;
