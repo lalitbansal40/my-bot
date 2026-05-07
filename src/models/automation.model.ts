@@ -26,6 +26,7 @@ export type AutomationNodeType =
   | "payment_summary"
   | "product_list"
   | "single_product"
+  | "whatsapp_payment"
   | "integration_action"; // 🔥 generic integration action — slug + action_key + config
 
 /* ---------- NODE ---------- */
@@ -331,6 +332,7 @@ const AutomationNodeSchema = new Schema<any>(
         "ask_input",
         "product_list",
         "single_product",
+        "whatsapp_payment",
         "integration_action", // 🔥 generic
       ],
       required: true,

@@ -215,11 +215,38 @@ export const receiveMessage = async (req: Request, res: Response) => {
       message.type === "audio" ||
       message.type === "location" ||
       message.type === "sticker" ||
-      message.type === "contact"
+      message.type === "contact" ||
+      message.type === "order"
         ? message.type
         : "text";
 
+    // 🔥 ORDER (cart submit from catalog) — build a friendly text preview
+    const orderItemCount = message.order?.product_items?.length || 0;
+    const orderTotal = (message.order?.product_items || []).reduce(
+      (sum: number, it: any) =>
+        sum + Number(it.item_price || 0) * Number(it.quantity || 0),
+      0,
+    );
+    const orderCurrency = message.order?.product_items?.[0]?.currency || "";
+    const orderPreview =
+      message.type === "order"
+        ? `🛒 Order: ${orderItemCount} item${orderItemCount === 1 ? "" : "s"}${
+            orderTotal ? ` · ${orderCurrency} ${orderTotal.toFixed(2)}` : ""
+          }${message.order?.text ? ` · ${message.order.text}` : ""}`
+        : "";
+
+    // 🔥 PAYMENT STATUS (native WhatsApp Payment notify)
+    //   When payment_status comes in, WhatsApp puts it in interactive.payment
+    //   or as a top-level "payment" field depending on payload version.
+    const paymentObj = message?.interactive?.payment || message?.payment;
+    const isPaymentStatus =
+      message.type === "interactive" && !!paymentObj?.status;
+
     const incomingText =
+      orderPreview ||
+      (isPaymentStatus
+        ? `💳 Payment ${String(paymentObj.status).toLowerCase()}`
+        : "") ||
       message.text?.body ||
       message.button?.text ||
       message.button?.payload ||
@@ -281,6 +308,95 @@ export const receiveMessage = async (req: Request, res: Response) => {
 
     // Mark as read + show typing bubble on user's WhatsApp
     sendTypingIndicator(channel.phone_number_id, channel.access_token, message.id, from).catch(() => {});
+
+    /* 🛒 ORDER (cart submit) — persist to contact.attributes */
+    if (message.type === "order" && message.order) {
+      const items = (message.order.product_items || []).map((it: any) => ({
+        product_retailer_id: it.product_retailer_id,
+        quantity: Number(it.quantity || 0),
+        item_price: Number(it.item_price || 0),
+        currency: it.currency,
+      }));
+      const total_amount = items.reduce(
+        (s: number, it: any) => s + it.item_price * it.quantity,
+        0,
+      );
+      const item_count = items.reduce((s: number, it: any) => s + it.quantity, 0);
+      const lastOrder = {
+        catalog_id: message.order.catalog_id,
+        product_items: items,
+        text: message.order.text || "",
+        total_amount,
+        item_count,
+        currency: items[0]?.currency || "INR",
+        ordered_at: new Date(),
+        wa_message_id: message.id,
+      };
+      const update: Record<string, any> = {
+        "attributes.last_order": lastOrder,
+        "attributes.waiting_for": null,
+      };
+      const currentNodeId = contact.attributes?.current_node;
+      let advancedNodeId: string | null = null;
+      if (currentNodeId) {
+        const automationDoc = contact.attributes?.automation_id
+          ? await Automation.findById(contact.attributes.automation_id).lean<any>()
+          : null;
+        const node = automationDoc?.nodes?.find((n: any) => n.id === currentNodeId);
+        const saveTo = node?.save_to || node?.config?.save_to;
+        if (saveTo) update[`attributes.${saveTo}`] = lastOrder;
+
+        // 🔥 Advance the flow when the order arrives on a product node so the
+        // engine continues to the next step (checkout / thank-you / payment)
+        // instead of re-sending the catalog.
+        if (
+          node &&
+          (node.type === "product_list" || node.type === "single_product")
+        ) {
+          advancedNodeId = getNextNodeId(automationDoc.edges || [], currentNodeId);
+          if (advancedNodeId) {
+            update["attributes.current_node"] = advancedNodeId;
+          }
+        }
+      }
+      await Contact.updateOne({ _id: contact._id }, { $set: update });
+      contact.attributes = {
+        ...(contact.attributes || {}),
+        last_order: lastOrder,
+        waiting_for: null,
+        ...(advancedNodeId ? { current_node: advancedNodeId } : {}),
+      };
+    }
+
+    /* 💳 PAYMENT STATUS (native WA Payment) — persist */
+    if (isPaymentStatus && paymentObj) {
+      const lastPayment = {
+        status: paymentObj.status,
+        reference_id: paymentObj.reference_id,
+        transaction_id:
+          paymentObj.transaction_id ||
+          paymentObj?.transaction?.id ||
+          undefined,
+        amount: paymentObj?.amount || paymentObj?.total_amount || undefined,
+        method: paymentObj?.method || paymentObj?.payment_method || undefined,
+        captured_at: new Date(),
+        wa_message_id: message.id,
+      };
+      await Contact.updateOne(
+        { _id: contact._id },
+        {
+          $set: {
+            "attributes.last_payment": lastPayment,
+            "attributes.waiting_for": null,
+          },
+        },
+      );
+      contact.attributes = {
+        ...(contact.attributes || {}),
+        last_payment: lastPayment,
+        waiting_for: null,
+      };
+    }
 
     // 🧠 SESSION
     const session = {

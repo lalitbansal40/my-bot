@@ -54,6 +54,7 @@ interface Context {
     | "call_to_action"
     | "api_request"
     | "send_template"
+    | "order"
     | null;
     data?: Record<string, any>;
   }) => Promise<void>;
@@ -1180,8 +1181,16 @@ export const executeNode = async ({
         return;
       }
 
-      // When a user taps a product and replies, the message comes back as text/order.
-      // For now: send the product list and wait (no waiting_for state needed).
+      // Park here. On cart submit, message.type === "order" arrives;
+      // webhook controller advances current_node to the next node.
+      if (
+        session.waiting_for === "order" ||
+        session.waiting_for === "button" ||
+        message?.interactive?.button_reply ||
+        message?.interactive?.list_reply
+      ) {
+        return;
+      }
       const contact = await Contact.findById(session.contact_id).lean();
       const context = { ...session.data, contact, ...contact?.attributes };
 
@@ -1200,12 +1209,22 @@ export const executeNode = async ({
         sections,
       });
 
-      return moveNext();
+      await updateSession({ current_node: node.id, waiting_for: "order" });
+      return;
     }
 
     case "single_product": {
       if (!node.catalog_id || !node.product_retailer_id) {
         console.warn("❌ single_product: catalog_id or product_retailer_id missing");
+        return;
+      }
+
+      if (
+        session.waiting_for === "order" ||
+        session.waiting_for === "button" ||
+        message?.interactive?.button_reply ||
+        message?.interactive?.list_reply
+      ) {
         return;
       }
 
@@ -1219,6 +1238,13 @@ export const executeNode = async ({
         footer: node.footer,
       });
 
+      await updateSession({ current_node: node.id, waiting_for: "order" });
+      return;
+    }
+
+    case "whatsapp_payment": {
+      // TODO: full Order Details payload — see whatsappPayment.ts (split out due to disk space)
+      console.warn("⚠️ whatsapp_payment node not yet implemented inline; place runner in separate file");
       return moveNext();
     }
 

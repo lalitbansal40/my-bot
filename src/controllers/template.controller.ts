@@ -15,6 +15,41 @@ import {
   releaseTemplateHold,
   reserveTemplateCharge,
 } from "../services/wallet.service";
+import { pushToAccount } from "../services/wsHelper";
+
+/**
+ * Normalize whatever the catch block sees into the schema-friendly shape:
+ *   { code?: number, message: string, details: string }
+ *
+ * - `message` is the human-readable text the frontend tooltip reads.
+ * - `details` is always a string (JSON-stringified if the source is an object)
+ *   because Message.error.details is typed `String` in the schema.
+ */
+const buildErrorPayload = (err: any) => {
+  const rawDetails = err?.response?.data ?? err?.message ?? "Unknown error";
+  const message =
+    err?.response?.data?.error?.message ||
+    err?.response?.data?.error?.error_user_msg ||
+    err?.response?.data?.message ||
+    (typeof err?.response?.data === "string" ? err.response.data : null) ||
+    err?.message ||
+    "Unknown error";
+  const code =
+    err?.response?.data?.error?.code ??
+    err?.response?.status ??
+    undefined;
+  const details =
+    typeof rawDetails === "string"
+      ? rawDetails
+      : (() => {
+          try {
+            return JSON.stringify(rawDetails);
+          } catch {
+            return String(rawDetails);
+          }
+        })();
+  return { code, message, details };
+};
 // 🔥 Helper: Get Channel
 const getChannel = async (channelId: string) => {
   const channel = await Channel.findById(channelId);
@@ -626,6 +661,7 @@ const uploadMediaForTemplate = async (fileUrl: string, accessToken: string) => {
 
 export const sendTemplate = async (req: Request, res: Response) => {
   let messageDoc: any = null;
+  let channel: any = null;
 
   try {
     const { templateName, to, bodyParams } = req.body;
@@ -638,7 +674,7 @@ export const sendTemplate = async (req: Request, res: Response) => {
       });
     }
 
-    const channel = await getChannel(channelId);
+    channel = await getChannel(channelId);
 
     // ✅ FIND OR CREATE CONTACT
     let contact = await Contact.findOne({
@@ -790,26 +826,34 @@ export const sendTemplate = async (req: Request, res: Response) => {
       data: response.data,
     });
   } catch (err: any) {
-    console.error("SEND TEMPLATE ERROR:", err?.response?.data || err.message);
+    const errorPayload = buildErrorPayload(err);
+    console.error("SEND TEMPLATE ERROR:", errorPayload.details);
 
     if (messageDoc?._id) {
       await releaseTemplateHold(messageDoc._id, "template_send_failed");
       await Message.findByIdAndUpdate(messageDoc._id, {
         status: "FAILED",
-        error: err?.response?.data || err.message,
+        error: errorPayload, // ✅ structured: { message, details } — frontend reads .message
         $set: {
-          "payload.error": err?.response?.data || err.message, // 🔥 SAVE ERROR ALSO
+          "payload.error": errorPayload.details,
         },
       });
+
+      // 🔥 LIVE PUSH so chat screen tooltip updates without a refresh
+      const accountId = channel?.account_id?.toString?.();
+      if (accountId) {
+        pushToAccount(accountId, {
+          type: "message_update",
+          _id: messageDoc._id.toString(),
+          status: "FAILED",
+          error: errorPayload,
+        }).catch(() => undefined);
+      }
     }
 
     return res.status(500).json({
       success: false,
-      message:
-        err?.message?.includes("Wallet") ||
-        err?.message?.includes("wallet")
-          ? err.message
-          : err?.response?.data || err.message,
+      message: errorPayload.message,
     });
   }
 };
@@ -1007,14 +1051,26 @@ const sendTemplateInternal = async ({
       },
     );
   } catch (err: any) {
+    const errorPayload = buildErrorPayload(err);
+    console.error("SEND TEMPLATE ERROR:", errorPayload.details);
     await releaseTemplateHold(messageDoc._id, "template_send_failed");
     await Message.findByIdAndUpdate(messageDoc._id, {
       status: "FAILED",
-      error: err?.response?.data || err.message,
+      error: errorPayload,
       $set: {
-        "payload.error": err?.response?.data || err.message,
+        "payload.error": errorPayload.details,
       },
     });
+
+    const accountId = channel?.account_id?.toString?.();
+    if (accountId) {
+      pushToAccount(accountId, {
+        type: "message_update",
+        _id: messageDoc._id.toString(),
+        status: "FAILED",
+        error: errorPayload,
+      }).catch(() => undefined);
+    }
     throw err;
   }
 

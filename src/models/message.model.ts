@@ -35,6 +35,13 @@ export type MessageType =
   | "reaction"
   | "location"
 
+  // 🔥 CATALOG / COMMERCE
+  | "product_list"
+  | "single_product"
+  | "order"           // user submits cart from catalog
+  | "order_details"   // bot sends Order Details / Pay Now (native WA Payment)
+  | "payment_status"  // bot-side mirror of WA payment status webhook
+
   | "call" // 🔥 ADD THIS
   | "unknown";
 
@@ -117,6 +124,9 @@ const MessageSchema = new Schema<MessageDocument>(
         "address_message",
         "product_list",
         "single_product",
+        "order",
+        "order_details",
+        "payment_status",
         "location_request"
       ],
       required: true,
